@@ -313,7 +313,7 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures de la ville <b>grab3d.com</b> (CC0) · mobilier urbain, plantes et rochers <b>Poly Haven</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes et rochers <b>Poly Haven</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
     <button data-m="back">← Retour</button></div>
@@ -2955,7 +2955,9 @@ const ladderMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, roughness: 0
 function makeBigVehicle(type) {
   const root = new THREE.Group(), B = BIG[type], half = B.len / 2;
   const add = (geo, mat, x, y, z, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.layers.set(GROUND); m.castShadow = shadow; root.add(m); return m; };
-  if (type === 'bus') {
+  const rb = realBigVehicle(type, B);
+  if (rb) { root.add(rb.model); root.userData.real = rb.name; }
+  else if (type === 'bus') {
     const body = new THREE.MeshStandardMaterial({ color: mpick(BUS_COLORS), roughness: 0.4, metalness: 0.3 });
     add(new THREE.BoxGeometry(2.5, 2.7, B.len), body, 0, 1.7, 0);
     add(new THREE.BoxGeometry(2.54, 1.0, B.len - 1.8), busWindowMat, 0, 2.3, 0.6);
@@ -2997,8 +2999,8 @@ function makeBigVehicle(type) {
     add(new THREE.BoxGeometry(2.2, 0.95, 0.06), darkGlassMat, 0, 2.25, -half - 0.01);
     add(new THREE.BoxGeometry(2.5, 3.0, 6.6), box, 0, 2.4, 1.3);
   }
-  const wheelMeshes = [];
-  for (const z of B.wheels) for (const s of [-1, 1]) wheelMeshes.push(add(wheelGeo, tyreMat, s * 1.12, 0.5, z, false));
+  const wheelMeshes = rb ? Object.values(rb.wheels) : [];
+  if (!rb) for (const z of B.wheels) for (const s of [-1, 1]) wheelMeshes.push(add(wheelGeo, tyreMat, s * 1.12, 0.5, z, false));
   for (const s of [-1, 1]) {
     const head = new THREE.Mesh(glowGeo, trafficHeadMat);
     head.scale.set(0.16, 0.08, 0.05); head.position.set(s * 0.9, 0.85, -half - 0.03); root.add(head);
@@ -3025,6 +3027,7 @@ function makeBigVehicle(type) {
     fl.position.set(0, 3.6, -half + 1); root.add(fl); flash.push(fl);
     fl.visible = false; virtualLights.push(fl); // lit through the shared effect lights
   }
+  if (rb) for (const m of flash) if (m.isMesh) m.position.y = rb.top + 0.05; // the beacons sit on the model's roof
   scene.add(root);
   return { root, wheels: wheelMeshes, type, flash, emergency: type === 'fire' || type === 'ambulance', halfLen: half, circles: B.circles, r: 1.3, dir: 0, x: 0, z: 0, yaw: 0, v: 0, cruise: mrange(...B.cruise), mode: 'straight', center: null, E: null, nd: 0, turn: null, stun: 0, spin: 0, active: false };
 }
@@ -10143,7 +10146,7 @@ async function runSelfTest() {
   await check('Écrans géants et ciel animé', async () => { await wait(300); return (screens().length === 3 && !!sky30.heli && sky30.planes.length === 2) || 'ciel'; });
   await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + 2) % 3; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
   await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(100); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(200); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
-  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0; for (const vs of Object.values(propPools())) for (const P of vs) placed += P.n; return (cars >= 25 && props >= 15 && !!s.fox && realTraffic > 3 && placed > 20 && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed}`; });
+  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['oak', 'maple', 'birch', 'olive', 'autumn', 'cypress'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -13856,8 +13859,7 @@ function addRoofClutter(i, j, info, group, rows) {
     }
     if (h > 14 && hs(8) < 0.35) { // a wooden water tank on legs
       const tx = hs(9) < 0.5 ? b.x0 + 2.4 : b.x1 - 2.4, tz = cz + (hs(10) - 0.5) * (d - 5);
-      tank.push(new THREE.CylinderGeometry(1.25, 1.25, 2.2, 14).translate(tx, h + 2.6, tz), new THREE.ConeGeometry(1.35, 0.8, 14).translate(tx, h + 4.1, tz));
-      for (const [lx, lz] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) metal.push(new THREE.BoxGeometry(0.12, 1.5, 0.12).translate(tx + lx, h + 0.75, tz + lz));
+      realProp(info, 'wtower', tx, tz, hs(13) * 6, 0.24, h);
       pillars.push({ x: tx, z: tz, r: 1.3, top: h + 4, bot: h - 0.6, key: info.key });
     }
     if (h > 22 && hs(11) < 0.3) { const ax = cx + (hs(12) - 0.5) * (w - 3), az = b.oz ? (b.oz < 0 ? b.z1 - 1.2 : b.z0 + 1.2) : cz; metal.push(new THREE.CylinderGeometry(0.05, 0.08, 6, 6).translate(ax, h + 3, az)); }
@@ -14404,11 +14406,24 @@ function addFurniture(i, j, info, group) {
     if (hs(side + 86) < (info.district === 'chinatown' || info.district === 'port' ? 0.6 : 0.35)) { const u = 3 + hs(side + 87) * 46; for (let k = 0; k < 2 + Math.floor(hs(side + 88) * 4); k++) { const [x, z, yaw] = at(side, u + k * 0.55 + hs(k + side) * 0.3, WALK - 0.35 - hs(k + 7) * 0.4); realProp(info, 'bag', x, z, yaw + k * 1.3, 0.9 + hs(k + 3) * 0.3); } }
     if ((info.district === 'neon' || info.district === 'downtown' || info.district === 'chinatown') && hs(side + 89) < 0.4) { const u = 10 + hs(side + 91) * 30; for (const d of [0, 2.4]) { const [x, z, yaw] = at(side, u + d, WALK - 0.45); realProp(info, hs(side + 92) < 0.5 ? 'pot' : 'planter', x, z, yaw); } }
     if (info.district === 'port' && hs(side + 93) < 0.75) { const u = 4 + hs(side + 94) * 40; for (let k = 0; k < 5; k++) { const [x, z, yaw] = at(side, u + (k % 3) * 1.1, WALK - 0.6 - Math.floor(k / 3) * 1.0); realProp(info, mpick2(['crate', 'barrel', 'pcrate', 'crate'], hs(k + side * 5)), x, z, yaw + hs(k) * 0.8); } pillars.push({ ...(([x, z]) => ({ x, z }))(at(side, u + 1.1, WALK - 1.1)), r: 1.4, top: 1.2, key: info.key }); }
-    if (hs(side + 95) < 0.12) { const u = 10 + hs(side + 96) * 30; for (let k = 0; k < 3; k++) { const [x, z, yaw] = at(side, u + k * 1.6, 0.5); realProp(info, 'barrier', x, z, yaw + Math.PI / 2); } }
+    if (hs(side + 95) < 0.12) { const u = 10 + hs(side + 96) * 30; for (let k = 0; k < 3; k++) { const [x, z, yaw] = at(side, u + k * 1.6, 0.5); realProp(info, 'barrier', x, z, yaw + Math.PI / 2); } for (let k = 0; k < 3; k++) { const [x, z, yaw] = at(side, u + k * 1.6 + 0.8, 1.3); realProp(info, k === 1 ? 'sandbags' : 'tbarrel', x, z, yaw + Math.PI / 2); } }
     if (hs(side + 4) < 0.45) { const [x, z, yaw] = at(side, 20 + hs(side + 14) * 20, 1.4); realProp(info, 'bench', x, z, yaw + BENCH_YAW()); info.benches.push({ x, z, yaw }); }
-    for (let k = 0; k < 3; k++) if (hs(side * 3 + k + 20) < 0.5) { const [x, z] = at(side, 14 + k * 14, 0.45); B(L.metal, 0.08, 1.1, 0.08, x, 0.71, z); B(L.green, 0.18, 0.3, 0.14, x, 1.38, z); }
-    if (hs(side + 30) < 0.25) { const [x, z, yaw] = at(side, 30 + hs(side + 31) * 10, 1.0); for (let k = -2; k <= 2; k++) L.metal.push(new THREE.TorusGeometry(0.35, 0.025, 6, 12, Math.PI).rotateY(yaw).translate(x + Math.cos(yaw) * k * 0.5, 0.2, z - Math.sin(yaw) * k * 0.5)); }
-    if (hs(side + 40) < 0.13) { const [x, z, yaw] = at(side, 44, 1.2); B(L.metal, 1.0, 2.3, 1.0, x, 1.31, z, yaw); B(L.glass, 0.9, 1.6, 0.9, x, 1.3, z, yaw); B(L.red, 1.02, 0.25, 1.02, x, 2.5, z, yaw); pillars.push({ x, z, r: 0.7, top: 2.5, key: info.key }); }
+    for (let k = 0; k < 3; k++) if (hs(side * 3 + k + 20) < 0.5) { const [x, z, yaw] = at(side, 14 + k * 14, 0.45); realProp(info, 'meter', x, z, yaw); }
+    if (hs(side + 30) < 0.25) { const [x, z, yaw] = at(side, 30 + hs(side + 31) * 10, 1.0); realProp(info, 'bikerack', x, z, yaw); for (let k = 0; k < 1 + Math.floor(hs(side + 32) * 3); k++) { const f = fwdOf(yaw); realProp(info, 'bike', x + Math.cos(yaw) * (k - 1) * 0.7 - f.x * 0.2, z - Math.sin(yaw) * (k - 1) * 0.7 - f.z * 0.2, yaw + Math.PI / 2 + (hs(k) - 0.5) * 0.2); } }
+    if (hs(side + 40) < 0.13) { const [x, z, yaw] = at(side, 44, 1.2); realProp(info, 'phone', x, z, yaw); pillars.push({ x, z, r: 0.7, top: 2.5, key: info.key }); }
+    { // more street life: dumpsters, mailboxes, kiosks, scooters, columns, ATMs, vending machines, construction gear
+      const d = info.district, w = WALK - 0.45, put = (t, u, inset, r = 0.5, top = 1.4, yo = 0) => { const [x, z, yaw] = at(side, u, inset); realProp(info, t, x, z, yaw + yo); if (r) pillars.push({ x, z, r, top, key: info.key }); };
+      if (hs(side + 200) < (d === 'port' || d === 'chinatown' ? 0.45 : 0.25)) put('dumpster', 4 + hs(side + 201) * 44, w - 0.25, 0.9, 1.4, Math.PI);
+      if (hs(side + 202) < 0.3) put('mailbox', 6 + hs(side + 203) * 40, 0.6, 0.35, 1.3);
+      if (hs(side + 204) < 0.25) put('news', 9 + hs(side + 205) * 36, 0.65, 0.35, 1.0);
+      if (hs(side + 206) < 0.35) { const u = 12 + hs(side + 207) * 30; for (let k = 0; k < 1 + Math.floor(hs(side + 208) * 3); k++) put(hs(k + side + 209) < 0.5 ? 'scooter' : 'moped', u + k * 0.9, 0.75, 0, 0, Math.PI / 2 + (hs(k + 9) - 0.5) * 0.3); }
+      if ((d === 'downtown' || d === 'neon') && hs(side + 210) < 0.15) put('column', 24 + hs(side + 211) * 10, 1.9, 0.8, 3.8);
+      if ((d === 'downtown' || d === 'standard') && hs(side + 212) < 0.12) put('atm', 8 + hs(side + 213) * 38, WALK - 0.4, 0.45, 1.8, Math.PI);
+      if ((d === 'neon' || d === 'chinatown') && hs(side + 214) < 0.2) put('vending', 5 + hs(side + 215) * 40, WALK - 0.45, 0.6, 1.9, Math.PI);
+      if (d === 'downtown' && hs(side + 216) < 0.25) { const u = 16 + hs(side + 217) * 20; for (const du of [0, 4]) put('splanter', u + du, 1.9, 0.7, 1.0); }
+      if (hs(side + 218) < 0.2) put('bagpile', 3 + hs(side + 219) * 46, w - 0.2, 0, 0, hs(side + 220) * 6);
+      if ((d === 'port' || d === 'chinatown' || d === 'standard') && hs(side + 221) < 0.3) { const u = 4 + hs(side + 222) * 40; put('pallet', u, w - 0.4, 0, 0, hs(side + 223)); put('cartons', u + 1.3, w - 0.35, 0.6, 1.1, hs(side + 224)); }
+    }
     if (hs(side + 50) < 0.08) { const [x, z, yaw] = at(side, 26, 1.8); B(L.green, 2.2, 2.4, 1.6, x, 1.36, z, yaw); B(L.green, 2.6, 0.12, 2.0, x, 2.62, z, yaw); pillars.push({ x, z, r: 1.3, top: 2.6, key: info.key }); }
   }
   // corners: bollards, a sign pole with the street name and a traffic sign
@@ -14536,8 +14551,7 @@ function addVegetation(i, j, info, group) {
       if (hs(side * 9 + u) < 0.25) continue;
       const x = side < 2 ? x0 + u : side === 2 ? x0 + 1.8 : x0 + BLOCK - 1.8, z = side < 2 ? (side === 0 ? z0 + 1.8 : z0 + BLOCK - 1.8) : z0 + u, s = 0.8 + hs(u + side) * 0.5;
       L.planter.push(new THREE.BoxGeometry(1.3, 0.25, 1.3).translate(x, 0.28, z));
-      L.trunk.push(new THREE.CylinderGeometry(0.1 * s, 0.14 * s, 3 * s, 6).translate(x, 0.16 + 1.5 * s, z));
-      for (const [dy, r] of [[2.9, 1.5], [3.8, 1.2], [4.5, 0.8]]) L.leaf.push(new THREE.IcosahedronGeometry(r * s, 0).translate(x + (hs(u) - 0.5) * 0.4, 0.16 + dy * s, z + (hs(u + 1) - 0.5) * 0.4));
+      realProp(info, mpick2(d === 'downtown' ? ['oak', 'maple', 'birch', 'cypress'] : d === 'chinatown' ? ['olive', 'maple', 'autumn', 'oak'] : ['oak', 'maple', 'birch', 'olive', 'oak'], hs(u * 3 + side)), x, z, hs(u + side * 5) * 6.28, 0.62 * s, 0.4);
       pillars.push({ x, z, r: 0.35, top: 3, key: info.key });
     }
     // a hedge or a flower bed against the building
@@ -14547,7 +14561,7 @@ function addVegetation(i, j, info, group) {
       if (flowers) {
         L.planter.push(new THREE.BoxGeometry(w + 0.1, 0.35, dd + 0.1).translate(x, 0.33, z));
         for (let k = 0; k < 26; k++) { const g = new THREE.IcosahedronGeometry(0.13, 0).translate(x + (Math.random() - 0.5) * w, 0.6, z + (Math.random() - 0.5) * dd); const c = new THREE.Color(mpick([0xff3d9a, 0xffd23a, 0xf2f2ee, 0xc8201a, 0x8a5ad8, 0x3a7a2e, 0x3a7a2e])); const col = new Float32Array(g.attributes.position.count * 3); for (let v = 0; v < col.length; v += 3) col.set([c.r, c.g, c.b], v); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); L.flower.push(g); }
-      } else L.hedge.push(new THREE.BoxGeometry(w, 1.0, dd, 3, 1, 3).translate(x, 0.66, z));
+      } else { L.hedge.push(new THREE.BoxGeometry(w, 1.0, dd, 3, 1, 3).translate(x, 0.66, z)); for (const e of [-1, 1]) realProp(info, 'bush', x + (side < 2 ? e * (len / 2 + 0.7) : 0), z + (side < 2 ? 0 : e * (len / 2 + 0.7)), hs(side + e) * 6, 0.8); }
     }
     if (hs(side + 120) < 0.45) { const u = 4 + hs(side + 121) * (BLOCK - 12); for (let k = 0; k < 3; k++) { const t = WALK - 0.5, uu = u + k * 1.3, x = side < 2 ? x0 + uu : side === 2 ? x0 + t : x0 + BLOCK - t, z = side < 2 ? (side === 0 ? z0 + t : z0 + BLOCK - t) : z0 + uu; realProp(info, hs(k + side + 122) < 0.4 ? 'fern' : hs(k + 123) < 0.5 ? 'shrub' : 'shrub2', x, z, hs(k + 124) * 6.28, 0.7 + hs(k + 125) * 0.4); } }
     // ivy climbing a wall, grass tufts in the sidewalk cracks
@@ -14838,6 +14852,27 @@ const REAL_CAR_FILES = ['1990s-sedan', '1980s-sedan', '1970s-sedan', 'compact-ca
   'rally-car', 'dune-buggy', 'convertible', 'classic-car', 'limousine', 'lowrider', 'coupe', '1960s-sports-car', '1980s-sports-car', 'CarConcept'];
 const REAL_PROP_FILES = ['fire_hydrant', 'metal_trash_can', 'trashbag', 'painted_wooden_bench', 'utility_box_01', 'utility_box_02', 'planter_box_02', 'potted_plant_02',
   'shrub_03', 'shrub_02', 'fern_02', 'wooden_crate_01', 'Barrel_01', 'plastic_crate_01', 'concrete_road_barrier', 'covered_car', 'water_manhole_cover', 'rock_07'];
+const REAL_BIG_FILES = ['city-bus', 'double-decker-bus', 'minibus', 'delivery-truck', 'garbage-truck', 'mail-truck', 'fire-truck', 'ambulance', 'tow-truck', 'food-truck', 'street-sweeper'];
+const REAL_TREE_FILES = ['oak-tree', 'maple-tree', 'birch-tree', 'olive-tree', 'autumn-tree', 'cypress-tree', 'palm-tree', 'bush'];
+const REAL_OBJ_FILES = ['dumpster', 'phone-booth', 'mailbox', 'newspaper-stand', 'parking-meter', 'vending-machine', 'traffic-barrel', 'wooden-pallet', 'cardboard-box-stack',
+  'trash-bag-pile', 'atm', 'advertising-column', 'bike-rack', 'bicycle', 'moped', 'e-scooter', 'sandbags', 'street-planter'];
+// big vehicles: the models each procedural type can become
+const REAL_BIG = { bus: ['city-bus', 'city-bus', 'double-decker-bus', 'minibus'], truck: ['delivery-truck', 'garbage-truck', 'mail-truck', 'food-truck', 'street-sweeper'],
+  fire: ['fire-truck'], ambulance: ['ambulance'], tow: ['tow-truck'] };
+function realBigVehicle(type, B) {
+  if (!realCarsOk()) return null; // (also keeps the block builder away from these consts while loading)
+  const list = REAL_BIG[type]; if (!list) return null;
+  const ok = list.filter(n => realAssets().cars[n]); if (!ok.length) return null;
+  realBigVehicle.n = (realBigVehicle.n || 0) + 1;
+  const name = ok[(realBigVehicle.n + Math.floor(Math.random() * 2)) % ok.length];
+  const rb = buildRealCar(name, null, null, null); if (!rb) return null;
+  const sc = Math.min(1.1, Math.max(0.85, B.len / rb.layout.len));
+  rb.model.scale.setScalar(sc);
+  rb.model.traverse(o => { if (o.isMesh) { o.layers.set(GROUND); o.castShadow = true; } });
+  rb.top = new THREE.Box3().setFromObject(rb.model).max.y;
+  rb.name = name;
+  return rb;
+}
 // the procedural kinds and the models that can stand in for them (traffic, rivals, parked cars…)
 const REAL_KINDS = {
   citadine: ['compact-car', '1990s-compact-car', 'hatchback', '1990s-hatchback', 'electric-car'],
@@ -14864,6 +14899,14 @@ function startRealAssets() {
   const load = (url, ok) => { s.pending++; gltfLoader.load(url, (g) => { try { ok(g); } catch (e) { console.error(e); } one(); }, undefined, () => one()); };
   for (const n of REAL_CAR_FILES) load('assets/cars/' + n + '.glb', (g) => { s.cars[n] = prepRealCar(g.scene, n); });
   for (const n of REAL_PROP_FILES) load('assets/models/' + n + '.glb', (g) => { s.props[n] = g.scene; });
+  for (const n of REAL_BIG_FILES) load('assets/big/' + n + '.glb', (g) => { s.cars[n] = prepRealCar(g.scene, n); });
+  for (const n of REAL_TREE_FILES) load('assets/trees/' + n + '.glb', (g) => {
+    // the kit's pastel foliage, toned down to sit with the city's darker palette
+    g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { m.color.multiplyScalar(0.72); m.roughness = Math.max(m.roughness, 0.8); } });
+    s.props[n] = g.scene; (s.whole ||= new Set()).add(n);
+  });
+  for (const n of REAL_OBJ_FILES) load('assets/models/' + n + '.glb', (g) => { s.props[n] = g.scene; (s.whole ||= new Set()).add(n); });
+  load('assets/buildings/water-tower.glb', (g) => { s.props['water-tower'] = g.scene; (s.whole ||= new Set()).add('water-tower'); });
   load('assets/models/Fox.glb', (g) => { s.fox = g; });
 }
 
@@ -15083,6 +15126,12 @@ const PROP_DEFS31 = {
   box1: ['utility_box_01', true, 80], box2: ['utility_box_02', true, 80], planter: ['planter_box_02', true, 120], pot: ['potted_plant_02', true, 160],
   shrub: ['shrub_03', true, 200], shrub2: ['shrub_02', true, 120], fern: ['fern_02', false, 200], crate: ['wooden_crate_01', true, 160], barrel: ['Barrel_01', true, 160],
   pcrate: ['plastic_crate_01', false, 160], barrier: ['concrete_road_barrier', true, 120], manhole: ['water_manhole_cover', false, 160], rock: ['rock_07', true, 120],
+  oak: ['oak-tree', true, 120], maple: ['maple-tree', true, 120], birch: ['birch-tree', true, 120], olive: ['olive-tree', true, 100], autumn: ['autumn-tree', true, 60],
+  cypress: ['cypress-tree', true, 80], palm: ['palm-tree', true, 80], bush: ['bush', true, 220],
+  dumpster: ['dumpster', true, 90], phone: ['phone-booth', true, 40], mailbox: ['mailbox', true, 80], news: ['newspaper-stand', true, 70], meter: ['parking-meter', false, 260],
+  vending: ['vending-machine', true, 50], tbarrel: ['traffic-barrel', true, 120], pallet: ['wooden-pallet', false, 120], cartons: ['cardboard-box-stack', true, 120],
+  bagpile: ['trash-bag-pile', true, 90], atm: ['atm', true, 40], column: ['advertising-column', true, 50], bikerack: ['bike-rack', true, 60], bike: ['bicycle', true, 90],
+  moped: ['moped', true, 70], scooter: ['e-scooter', true, 90], sandbags: ['sandbags', true, 80], splanter: ['street-planter', true, 90], wtower: ['water-tower', true, 60],
 };
 // a prop file → its variants: each top-level mesh group, recentred on x/z with its base at y = 0
 function propVariants(file) {
@@ -15092,13 +15141,13 @@ function propVariants(file) {
   src.updateMatrixWorld(true);
   const groups = [];
   const top = src.children.length === 1 && !src.children[0].isMesh ? src.children[0] : src;
-  for (const c of top.children) { let has = false; c.traverse(o => { if (o.isMesh) has = true; }); if (has) groups.push(c); }
+  if (!realAssets().whole?.has(file)) for (const c of top.children) { let has = false; c.traverse(o => { if (o.isMesh) has = true; }); if (has) groups.push(c); }
   if (!groups.length) groups.push(src);
   const out = [];
   for (const g of groups) {
     const box = new THREE.Box3().setFromObject(g), ctr = box.getCenter(new THREE.Vector3());
     const holder = new THREE.Group(); holder.position.set(-ctr.x, -box.min.y, -ctr.z);
-    const clone = g.clone(true); clone.applyMatrix4(g.parent.matrixWorld); holder.add(clone);
+    const clone = g.clone(true); if (g.parent) clone.applyMatrix4(g.parent.matrixWorld); holder.add(clone);
     const wrap = new THREE.Group(); wrap.add(holder);
     out.push({ parts: flattenModel(wrap), size: box.getSize(new THREE.Vector3()) });
   }
