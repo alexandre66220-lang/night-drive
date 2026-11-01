@@ -23,3 +23,10 @@ puis ouvrir http://localhost:8000.
 ## Auto-test
 
 Ouvrir la page avec `?selftest` lance une série de vérifications automatiques dans un emplacement de sauvegarde séparé.
+
+## Crédits des modèles 3D
+
+- Voitures de la ville : [grab3d.com](https://grab3d.com/free-3d-models/car/) — CC0.
+- Mobilier urbain, plantes et rochers : [Poly Haven](https://polyhaven.com/models) — CC0.
+- « Car Concept » : Eric Chadwick / Darmstadt Graphics Group, [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) — CC BY 4.0.
+- Renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) — Khronos glTF Sample Assets.

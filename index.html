@@ -313,7 +313,7 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier et Xbot des exemples three.js · toutes les autres voitures, la ville, le col, le stade et la corniche sont générés par le code.</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures de la ville <b>grab3d.com</b> (CC0) · mobilier urbain, plantes et rochers <b>Poly Haven</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
     <button data-m="back">← Retour</button></div>
@@ -3235,7 +3235,9 @@ function wheelParts(r) {
   const well = new THREE.CylinderGeometry(r * 0.68, r * 0.68, hw * 1.35, 20).rotateZ(Math.PI / 2);
   return (wheelGeos[r] = [tyre, rim, well]);
 }
-function buildProcCar(id, bodyMat, glassMat = trafficGlass, rimM = rimMat) {
+function buildProcCar(id, bodyMat, glassMat = trafficGlass, rimM = rimMat, realName) {
+  const rn = realName === undefined ? realPick(id) : realName;
+  if (rn && realCarsOk()) { const rc = buildRealCar(rn, bodyMat, glassMat, rimM); if (rc) return rc; }
   const sp = CAR_SPECS[id], G = procGeos(id), model = new THREE.Group();
   const add = (geo, mat, name) => { if (!geo) return null; const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (name) m.name = name; model.add(m); return m; };
   add(G.body, bodyMat, 'body'); add(G.glass, glassMat, 'glass'); add(G.trim, trimMat); add(G.stripe, stripeWhiteMat);
@@ -3394,7 +3396,7 @@ function makeTrafficCar(kind) {
     model = pm.model; lay = pm.layout; wheelList = Object.values(pm.wheels); flash = pm.flash;
   } else {
     const pc = buildProcCar(kind, new THREE.MeshStandardMaterial({ color: paint, metalness: 0.75, roughness: 0.35 }));
-    model = pc.model; lay = pc.layout; wheelList = Object.values(pc.wheels);
+    model = pc.model; lay = pc.layout; wheelList = Object.values(pc.wheels); root.userData.real = pc.real;
   }
   model.traverse(o => { if (o.isMesh) { o.layers.set(GROUND); o.castShadow = true; } });
   root.add(model);
@@ -4369,10 +4371,12 @@ gltfLoader.load(ASSETS + 'models/gltf/ferrari.glb', (gltf) => {
   addTuning(pcF, { canWing: true, bodyMat: body, deckY: 0.98, rearZ: carLayout.rear - 0.45, W: carLayout.W, plateY: 0.45, plateZ: carLayout.rear - 0.02 });
   ['rim_fl', 'rim_fr', 'rim_rr', 'rim_rl'].forEach(n => { const o = model.getObjectByName(n); if (o) o.material = rimsF; });
   playerCars.bolide = { ...pcF, body, rimMat: rimsF, glassMat: glass };
-  selectCar(garageState.car, true);
-  car.ready = true;
-  initTraffic();
-  initPolice();
+  realCarsWhen(() => {
+    selectCar(garageState.car, true);
+    car.ready = true;
+    initTraffic();
+    initPolice();
+  });
 });
 
 gltfLoader.load(ASSETS + 'models/gltf/Xbot.glb', (gltf) => {
@@ -4660,9 +4664,10 @@ function makePlayerCar(id) {
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x0b0e13, metalness: 0.5, roughness: 0.04, clearcoat: 1 });
   const rim = new THREE.MeshStandardMaterial({ color: 0xc8ccd4, roughness: 0.22, metalness: 1 });
   const spec = CARS[id].spec, sp = CAR_SPECS[spec];
-  const pc = spec === 'moto' ? buildMoto(body, glass, rim) : spec === 'buggy' ? buildBuggy(body, glass, rim) : buildProcCar(spec, body, glass, rim);
+  const pc = spec === 'moto' ? buildMoto(body, glass, rim) : spec === 'buggy' && !realCarsOk() ? buildBuggy(body, glass, rim) : buildProcCar(spec, body, glass, rim, PLAYER_REAL[id] || PLAYER_REAL[spec] || null);
   const deckY = sp ? Math.max(...sp.body.filter(([u]) => u < -sp.L / 2 + 0.8).map(([, v]) => v)) : 1.0;
-  addTuning(pc, { canWing: CARS[id].wing !== false, bodyMat: body, deckY, rearZ: sp ? sp.L / 2 - 0.3 : 0.9, W: pc.layout.W, plateY: sp ? sp.ty - 0.3 : pc.layout.tail.y - 0.22, plateZ: sp ? sp.L / 2 + 0.075 : pc.layout.rear + 0.02 });
+  if (pc.tune) addTuning(pc, { canWing: CARS[id].wing !== false, bodyMat: body, W: pc.layout.W, ...pc.tune });
+  else addTuning(pc, { canWing: CARS[id].wing !== false, bodyMat: body, deckY, rearZ: sp ? sp.L / 2 - 0.3 : 0.9, W: pc.layout.W, plateY: sp ? sp.ty - 0.3 : pc.layout.tail.y - 0.22, plateZ: sp ? sp.L / 2 + 0.075 : pc.layout.rear + 0.02 });
   return { ...pc, body, rimMat: rim, glassMat: glass };
 }
 function selectCar(id, initial = false) {
@@ -5005,6 +5010,7 @@ const policePanelMat = new THREE.MeshStandardMaterial({ roughness: 0.4, map: can
 const policeLight = new THREE.PointLight(0x2a6aff, 0, 44, 2); // one shared light over the nearest pursuer
 scene.add(policeLight);
 function makePoliceMesh() {
+  const rp = realCarsOk() && realPoliceMesh(); if (rp) return rp;
   const pc = buildProcCar('sedan', new THREE.MeshStandardMaterial({ color: 0x14161b, metalness: 0.7, roughness: 0.3 }));
   const sp = CAR_SPECS.sedan, roofY = sp.cabin[1][1] + 0.08, rz = -(sp.cabin[1][0] + sp.cabin[2][0]) / 2;
   const bar = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.1, 0.3), trimMat); bar.position.set(0, roofY + 0.05, rz);
@@ -5819,7 +5825,7 @@ function stealCar(c) {
     body = model.getObjectByName('body').material;
   } else {
     body = dirtable(new THREE.MeshPhysicalMaterial({ color: c.paint, metalness: 0.85, roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.05 }));
-    const pc = buildProcCar(c.kind, body, new THREE.MeshPhysicalMaterial({ color: 0x0b0e13, metalness: 0.5, roughness: 0.04, clearcoat: 1 }));
+    const pc = buildProcCar(c.kind, body, new THREE.MeshPhysicalMaterial({ color: 0x0b0e13, metalness: 0.5, roughness: 0.04, clearcoat: 1 }), rimMat, c.root.userData.real);
     model = pc.model; wheelsOf = pc.wheels; layout = pc.layout;
   }
   car.pos.set(c.x, 0, c.z); car.y = 0; car.yaw = c.yaw; car.nitro = 0.5;
@@ -8885,7 +8891,7 @@ function showroomCar(id) {
   const c = CARS[id], lk = garageState.cars[id] || defaultLook(id), body = new THREE.MeshStandardMaterial({ color: lk.paint, metalness: 0.85, roughness: 0.28 });
   if (!c.spec && trafficTemplate) { const m = trafficTemplate.clone(true); m.getObjectByName('body').material = body; return m; }
   const rim = new THREE.MeshStandardMaterial({ color: 0xc8ccd4, metalness: 1, roughness: 0.25 });
-  return (c.spec === 'moto' ? buildMoto(body, trafficGlass, rim) : c.spec === 'buggy' ? buildBuggy(body, trafficGlass, rim) : buildProcCar(c.spec, body, trafficGlass, rim)).model;
+  return (c.spec === 'moto' ? buildMoto(body, trafficGlass, rim) : c.spec === 'buggy' ? buildBuggy(body, trafficGlass, rim) : buildProcCar(c.spec, body, trafficGlass, rim, PLAYER_REAL[id] || null)).model;
 }
 function buildShowroom() {
   const W = 34, D = 22, H = 7, g = roomShell(W, D, H, 0x0c0d12, 0x14161e, 0.15), R = { id: 'showroom', w: W, d: D, h: H, g, obstacles: [], spots: [], cars: new THREE.Group() };
@@ -10064,7 +10070,7 @@ async function runSelfTest() {
   await check('Base jump depuis un toit', async () => { const pads = []; for (const b of blocks.values()) for (const r of b.roofs || []) if (r.h > 18) pads.push(r); let pad = null; for (const r of pads.sort((a, b) => b.h - a.h)) { car.pos.set((r.x0 + r.x1) / 2, 0, (r.z0 + r.z1) / 2); car.y = r.h; if (jumpEdge()) { pad = r; break; } } if (!pad) return 'pas de toit avec du vide'; walker.air = false; await wait(200); if (!jumpEdge()) return 'pas sur le toit'; startBaseJump(); let open = false; for (let k = 0; k < 60 && pk.chute; k++) { await wait(200); open ||= pk.chute?.open; } const ok = open && car.y < pad.h - 5; if (pk.chute) { car.y = 0.5; await wait(400); } shopOpen && closeShop(); return ok || `y=${car.y.toFixed(1)} ouvert=${open}`; });
   await check('Salle d’arcade et casse-briques', async () => { car.pos.set(ARCADE_DOOR.x, 0, ARCADE_DOOR.z - 1.2); car.y = 0.16; await wait(200); interiorUse(); await wait(400); const inside = interior?.id === 'arcade'; openArcadeGame('bricks'); await wait(600); const playing = panelMode === 'arcade' && arc.s && !arc.s.over; closeArcade(); exitInterior(); await wait(300); return (inside && playing && !shopOpen) || `dedans=${inside} jeu=${playing}`; });
   await check('Karting indoor : entrer, rouler, sortir', async () => { earn(100, false); car.pos.set(KART_DOOR.x, 0, KART_DOOR.z - 1.2); car.y = 0.16; await wait(200); interiorUse(); await wait(1500); const on = !!vehicle?.kart && inKart(car.pos.x, car.pos.z) && !!kartGroup?.visible; const walls = blockRects(Math.floor(car.pos.x / S), Math.floor(car.pos.z / S)).length; car.pos.set(KART_EXIT.x, 0, KART_EXIT.z); await wait(200); useDoor(); await wait(500); return (on && walls > 4 && onFoot && !inKart(car.pos.x, car.pos.z)) || `kart=${on} murs=${walls} àPied=${onFoot}`; });
-  await check('Laisser passer l’ambulance', async () => { const pk2 = parked.find(p => !p.desc.stolen); if (pk2) boardParked(pk2); await wait(500); for (let k = 0; k < 100; k++) rec.push({ x: car.pos.x, z: car.pos.z + k * 0.3, y: car.y, yaw: car.yaw, rx: 0, rz: 0, k: 50 }); startYield(); const on = yieldEv.on; car.vx = car.vz = 0; await wait(2200); const passed = yieldEv.phase === 'pass'; endYield(); return (on && passed) || `alerte=${on} passée=${passed}`; });
+  await check('Laisser passer l’ambulance', async () => { const pk2 = parked.find(p => !p.desc.stolen); if (pk2) boardParked(pk2); if (onFoot) { selectCar(garageState.car); onFoot = false; walker.model.visible = false; } await wait(500); for (let k = 0; k < 100; k++) rec.push({ x: car.pos.x, z: car.pos.z + k * 0.3, y: car.y, yaw: car.yaw, rx: 0, rz: 0, k: 50 }); startYield(); const on = yieldEv.on; car.vx = car.vz = 0; await wait(2200); const passed = yieldEv.phase === 'pass'; endYield(); return (on && passed) || `alerte=${on} passée=${passed}`; });
   await check('Policiers aux carrefours pendant une panne', async () => { const ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S); nightlife.blackout = { cx: ci, cz: cj, until: (world.tod + 2) % 24, name: 'test' }; updateBlackout(world.tod, -5); await wait(300); const n = blackoutCops.length, key0 = blackoutCops.key, bd = nightlife.bdDay; nightlife.blackout = null; nightlife.bdDay = -5; updateBlackout(world.tod, -5); nightlife.bdDay = bd; await wait(300); return (n === 4 && (!blackoutCops.length || blackoutCops.key !== key0)) || `policiers=${n}`; });
   await check('Livreurs à vélo et trottinette', async () => { world.tod = 22; await wait(800); return couriers.filter(c => c.g.visible).length >= 3 || `visibles=${couriers.filter(c => c.g.visible).length}`; });
   await check('Carambolage : déviation GPS et dépanneuse', async () => { if (accident.state !== 'idle') endAccident(); if (!startAccident()) return 'pas d’accident possible ici'; await wait(300); const det = pile.segs.length > 0 && pile.segs.every(sg => blockedSegs.has(sg)); accident.t = 16; await wait(400); const tow = !!pile.tow?.root.visible; endAccident(); await wait(300); return (det && tow && !pile.segs.length) || `déviation=${det} dépanneuse=${tow}`; });
@@ -10128,15 +10134,16 @@ async function runSelfTest() {
   await check('Didacticiels et statistiques', async () => (HINTS.filter(h => h[0].startsWith('t_')).length >= 14 && statsHtml((t, b) => b).includes('Distance totale') && (prog.st2?.sec || 0) > 0) || 'tutos/stats');
   await check('Balade zen', async () => { toggleZen(); addHeat(200, 'TEST'); const calm = !police.stars && offerChallenge() === false; toggleZen(); return calm || 'la police vient quand même'; });
   await check('Passants réalistes', async () => { const n = peds.filter(p => p.umb !== undefined).length; const H = HUMANS.list.length; let upright = true; for (const h of HUMANS.list) { const c = humanClone(); const mx = new THREE.AnimationMixer(c.inner); mx.clipAction(c.clips.walk).play(); mx.update(0.4); c.root.updateMatrixWorld(true); const g = (n2) => { const o = c.inner.getObjectByName(n2) || c.inner.getObjectByName('mixamorig' + n2); const v = new THREE.Vector3(); o.getWorldPosition(v); return v.y; }; if (!(g('Head') > g('LeftFoot') + 1 && g('LeftHand') < g('LeftArm'))) upright = false; } return (H === 2 && n >= PED_N * 0.8 && upright) || `modèles=${H} passants humains=${n} debout=${upright}`; });
-  await check('Voitures de trafic détaillées', async () => { const pc = buildProcCar('sedan', new THREE.MeshStandardMaterial()); let interior = false, plates = 0; pc.model.traverse(o => { if (o.material === interiorMat) interior = true; if (o.name === 'autoPlate') plates++; }); return (interior && plates === 2) || `intérieur=${interior} plaques=${plates}`; });
+  await check('Voitures de trafic détaillées', async () => { const pc = buildProcCar('sedan', new THREE.MeshStandardMaterial(), undefined, undefined, null); let interior = false, plates = 0; pc.model.traverse(o => { if (o.material === interiorMat) interior = true; if (o.name === 'autoPlate') plates++; }); return (interior && plates === 2) || `intérieur=${interior} plaques=${plates}`; });
   await check('Dégâts visibles', async () => { await ownCar(); const d0 = car.damage; car.damage = 0.8; await wait(200); const ok = !!dmgVis.crack && !!dmgVis.bumper; car.damage = d0; setDamage(d0); await wait(200); return ok || 'pas de fissure'; });
   await check('Fumée de pneus', async () => { const n0 = puffs.filter(p => p.life > 0).length; for (let k = 0; k < 20; k++) emitPuff(car.pos.x, 0.5, car.pos.z, 0, 1, 0, 1, 0.5, 3, 0.4, [0.8, 0.8, 0.8]); await wait(100); return puffs.filter(p => p.life > 0).length > n0 || 'pas de fumée'; });
   await check('Commerces visitables', async () => { const res = []; for (const id of Object.keys(SHOP_ROOMS)) { const d = DOORS.find(o => o.id === id); if (!onFoot) { car.vx = car.vz = 0; leaveCar(); } car.pos.set(d.x, 0, d.z - 1.2); car.y = 0.16; await wait(150); interiorUse(); await wait(300); res.push(interior?.id === id && interior.spots.some(sp => sp.act === 'shop')); exitInterior(); await wait(150); } await ownCar(); return res.every(Boolean) || `commerces=${res}`; });
   await check('Plage animée et marina', async () => { warpCar({ x: 2 * S + 36, z: RZ0 - 8, yaw: 0 }); await wait(1500); const beach = beaches.size > 0; warpCar({ x: MARINA.i * S + 36, z: RZ0 - 8, yaw: 0 }); await wait(1200); return (beach && !!marina.g && marina.yachts.length >= 4) || `plage=${beach} marina=${!!marina.g}`; });
-  await check('Voitures garées et mobilier urbain', async () => { await ownCar(); teleportTo('depart'); await wait(800); const parkedN = Object.values(pkPool).reduce((a, P) => a + P.body.count, 0); const b = [...blocks.values()].find(q => CITY_WALK.includes(q.district) && q.benches); let solid = false; b?.group.traverse(o => { if (o.material === vcSolidMat()) solid = true; }); return (parkedN > 10 && solid) || `garées=${parkedN} mobilier=${solid}`; });
+  await check('Voitures garées et mobilier urbain', async () => { await ownCar(); teleportTo('depart'); await wait(800); const parkedN = Object.values(pkPool).reduce((a, P) => a + P.body.count, 0) + (realCarsOk() ? realParkPools().reduce((a, P) => a + P.n, 0) : 0); const b = [...blocks.values()].find(q => CITY_WALK.includes(q.district) && q.benches); let solid = false; b?.group.traverse(o => { if (o.material === vcSolidMat()) solid = true; }); return (parkedN > 10 && solid) || `garées=${parkedN} mobilier=${solid}`; });
   await check('Écrans géants et ciel animé', async () => { await wait(300); return (screens().length === 3 && !!sky30.heli && sky30.planes.length === 2) || 'ciel'; });
   await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + 2) % 3; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
   await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(100); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(200); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
+  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0; for (const vs of Object.values(propPools())) for (const P of vs) placed += P.n; return (cars >= 25 && props >= 15 && !!s.fox && realTraffic > 3 && placed > 20 && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed}`; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -12010,6 +12017,7 @@ function updateStorm(dt) {
 // ---------- wildlife: foxes on the sidewalks, gulls at the port, bats round the lighthouse ----------
 const foxMat = new THREE.MeshStandardMaterial({ color: 0xc8641a, roughness: 0.8 }), whiteMat2 = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8 });
 function makeFox() {
+  const rf = makeRealFox(); if (rf) return { g: rf, x: 0, z: 0, dir: 0, v: 1.6, placed: false, flee: 0 };
   const g = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.55), foxMat); body.position.y = 0.32; g.add(body);
   const head = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.26, 6).rotateX(Math.PI / 2), foxMat); head.position.set(0, 0.42, -0.36); g.add(head);
   const tail = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 6).rotateX(-Math.PI / 2.4), foxMat); tail.position.set(0, 0.36, 0.42); g.add(tail);
@@ -14320,7 +14328,9 @@ let pkCell = null;
 function rebuildParked(ci, cj) {
   for (let k = pillars.length - 1; k >= 0; k--) if (pillars[k].key === 'pcars') pillars.splice(k, 1);
   const pools = PK_TYPES.map(parkedPool), n = pools.map(() => 0), m4 = new THREE.Matrix4(), w4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), c3 = new THREE.Color();
+  realParkBegin();
   const place = (x, z, yaw, seed) => {
+    if (realCarsOk()) { realPark(x, z, yaw, seed); const f = fwdOf(yaw); for (const s of [-1.2, 1.2]) pillars.push({ x: x + f.x * s, z: z + f.z * s, r: 1.0, top: 1.6, key: 'pcars' }); return; }
     const t = ((Math.floor(seed * 997) % 3) + 3) % 3, P = pools[t], k = n[t]; if (k >= PK_MAX) return;
     q.setFromAxisAngle(up, yaw); m4.compose(new THREE.Vector3(x, 0, z), q, one);
     for (const part of ['body', 'glass', 'trim', 'lamps']) if (P[part]) P[part].setMatrixAt(k, m4);
@@ -14346,6 +14356,7 @@ function rebuildParked(ci, cj) {
       }
     }
   }
+  realParkEnd();
   pools.forEach((P, t) => { for (const m of P.parts) { m.count = m === P.tyre || m === P.rim ? n[t] * 4 : n[t]; m.instanceMatrix.needsUpdate = true; } if (P.body.instanceColor) P.body.instanceColor.needsUpdate = true; });
 }
 function updateParkedCars() {
@@ -14387,8 +14398,14 @@ function addFurniture(i, j, info, group) {
   const at = (side, u, inset = 1.0) => side === 0 ? [x0 + u, z0 + inset, Math.PI] : side === 1 ? [x0 + u, z0 + BLOCK - inset, 0] : side === 2 ? [x0 + inset, z0 + u, -Math.PI / 2] : [x0 + BLOCK - inset, z0 + u, Math.PI / 2];
   const B = (list, w, h, d, x, y, z, yaw = 0) => list.push(new THREE.BoxGeometry(w, h, d).rotateY(yaw).translate(x, y, z));
   for (let side = 0; side < 4; side++) {
-    if (hs(side) < 0.55) { const [x, z] = at(side, 8 + hs(side + 10) * 40, 0.7); L.red.push(new THREE.CylinderGeometry(0.15, 0.18, 0.7, 10).translate(x, 0.51, z), new THREE.SphereGeometry(0.16, 10, 6).translate(x, 0.86, z), new THREE.CylinderGeometry(0.06, 0.06, 0.45, 6).rotateZ(Math.PI / 2).translate(x, 0.65, z)); pillars.push({ x, z, r: 0.25, top: 1, key: info.key }); }
-    if (hs(side + 4) < 0.45) { const [x, z, yaw] = at(side, 20 + hs(side + 14) * 20, 1.4); B(L.wood, 1.8, 0.06, 0.45, x, 0.6, z, yaw); const f = fwdOf(yaw); B(L.wood, 1.8, 0.45, 0.06, x - f.x * 0.22, 0.9, z - f.z * 0.22, yaw); for (const s of [-0.75, 0.75]) B(L.metal, 0.06, 0.45, 0.45, x + Math.cos(yaw) * s, 0.37, z - Math.sin(yaw) * s, yaw); info.benches.push({ x, z, yaw }); }
+    if (hs(side) < 0.55) { const [x, z, yaw] = at(side, 8 + hs(side + 10) * 40, 0.7); realProp(info, 'hydrant', x, z, yaw + hs(side + 90) * 0.6); pillars.push({ x, z, r: 0.25, top: 1, key: info.key }); }
+    if (hs(side + 80) < 0.7) { const [x, z, yaw] = at(side, 4 + hs(side + 81) * 44, 0.55); realProp(info, 'bin', x, z, yaw + hs(side + 82) * 6.28); pillars.push({ x, z, r: 0.35, top: 1.1, key: info.key }); }
+    if (hs(side + 83) < 0.3) { const [x, z, yaw] = at(side, 6 + hs(side + 84) * 40, WALK - 0.35); realProp(info, hs(side + 85) < 0.5 ? 'box1' : 'box2', x, z, yaw); pillars.push({ x, z, r: 0.45, top: 1.2, key: info.key }); }
+    if (hs(side + 86) < (info.district === 'chinatown' || info.district === 'port' ? 0.6 : 0.35)) { const u = 3 + hs(side + 87) * 46; for (let k = 0; k < 2 + Math.floor(hs(side + 88) * 4); k++) { const [x, z, yaw] = at(side, u + k * 0.55 + hs(k + side) * 0.3, WALK - 0.35 - hs(k + 7) * 0.4); realProp(info, 'bag', x, z, yaw + k * 1.3, 0.9 + hs(k + 3) * 0.3); } }
+    if ((info.district === 'neon' || info.district === 'downtown' || info.district === 'chinatown') && hs(side + 89) < 0.4) { const u = 10 + hs(side + 91) * 30; for (const d of [0, 2.4]) { const [x, z, yaw] = at(side, u + d, WALK - 0.45); realProp(info, hs(side + 92) < 0.5 ? 'pot' : 'planter', x, z, yaw); } }
+    if (info.district === 'port' && hs(side + 93) < 0.75) { const u = 4 + hs(side + 94) * 40; for (let k = 0; k < 5; k++) { const [x, z, yaw] = at(side, u + (k % 3) * 1.1, WALK - 0.6 - Math.floor(k / 3) * 1.0); realProp(info, mpick2(['crate', 'barrel', 'pcrate', 'crate'], hs(k + side * 5)), x, z, yaw + hs(k) * 0.8); } pillars.push({ ...(([x, z]) => ({ x, z }))(at(side, u + 1.1, WALK - 1.1)), r: 1.4, top: 1.2, key: info.key }); }
+    if (hs(side + 95) < 0.12) { const u = 10 + hs(side + 96) * 30; for (let k = 0; k < 3; k++) { const [x, z, yaw] = at(side, u + k * 1.6, 0.5); realProp(info, 'barrier', x, z, yaw + Math.PI / 2); } }
+    if (hs(side + 4) < 0.45) { const [x, z, yaw] = at(side, 20 + hs(side + 14) * 20, 1.4); realProp(info, 'bench', x, z, yaw + BENCH_YAW()); info.benches.push({ x, z, yaw }); }
     for (let k = 0; k < 3; k++) if (hs(side * 3 + k + 20) < 0.5) { const [x, z] = at(side, 14 + k * 14, 0.45); B(L.metal, 0.08, 1.1, 0.08, x, 0.71, z); B(L.green, 0.18, 0.3, 0.14, x, 1.38, z); }
     if (hs(side + 30) < 0.25) { const [x, z, yaw] = at(side, 30 + hs(side + 31) * 10, 1.0); for (let k = -2; k <= 2; k++) L.metal.push(new THREE.TorusGeometry(0.35, 0.025, 6, 12, Math.PI).rotateY(yaw).translate(x + Math.cos(yaw) * k * 0.5, 0.2, z - Math.sin(yaw) * k * 0.5)); }
     if (hs(side + 40) < 0.13) { const [x, z, yaw] = at(side, 44, 1.2); B(L.metal, 1.0, 2.3, 1.0, x, 1.31, z, yaw); B(L.glass, 0.9, 1.6, 0.9, x, 1.3, z, yaw); B(L.red, 1.02, 0.25, 1.02, x, 2.5, z, yaw); pillars.push({ x, z, r: 0.7, top: 2.5, key: info.key }); }
@@ -14532,6 +14549,7 @@ function addVegetation(i, j, info, group) {
         for (let k = 0; k < 26; k++) { const g = new THREE.IcosahedronGeometry(0.13, 0).translate(x + (Math.random() - 0.5) * w, 0.6, z + (Math.random() - 0.5) * dd); const c = new THREE.Color(mpick([0xff3d9a, 0xffd23a, 0xf2f2ee, 0xc8201a, 0x8a5ad8, 0x3a7a2e, 0x3a7a2e])); const col = new Float32Array(g.attributes.position.count * 3); for (let v = 0; v < col.length; v += 3) col.set([c.r, c.g, c.b], v); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); L.flower.push(g); }
       } else L.hedge.push(new THREE.BoxGeometry(w, 1.0, dd, 3, 1, 3).translate(x, 0.66, z));
     }
+    if (hs(side + 120) < 0.45) { const u = 4 + hs(side + 121) * (BLOCK - 12); for (let k = 0; k < 3; k++) { const t = WALK - 0.5, uu = u + k * 1.3, x = side < 2 ? x0 + uu : side === 2 ? x0 + t : x0 + BLOCK - t, z = side < 2 ? (side === 0 ? z0 + t : z0 + BLOCK - t) : z0 + uu; realProp(info, hs(k + side + 122) < 0.4 ? 'fern' : hs(k + 123) < 0.5 ? 'shrub' : 'shrub2', x, z, hs(k + 124) * 6.28, 0.7 + hs(k + 125) * 0.4); } }
     // ivy climbing a wall, grass tufts in the sidewalk cracks
     if (hs(side + 70) < 0.22) { const u = 6 + hs(side + 71) * (BLOCK - 22), x = side < 2 ? x0 + u : side === 2 ? x0 + WALK - 0.04 : x0 + BLOCK - WALK + 0.04, z = side < 2 ? (side === 0 ? z0 + WALK - 0.04 : z0 + BLOCK - WALK + 0.04) : z0 + u; L.ivy.push(new THREE.PlaneGeometry(4, 7).rotateY(side === 0 ? Math.PI : side === 1 ? 0 : side === 2 ? -Math.PI / 2 : Math.PI / 2).translate(x, 3.6, z)); }
     for (let k = 0; k < 6; k++) { const u = hs(side * 13 + k) * BLOCK, t = 0.3 + hs(side * 17 + k) * (WALK - 0.6), x = side < 2 ? x0 + u : side === 2 ? x0 + t : x0 + BLOCK - t, z = side < 2 ? (side === 0 ? z0 + t : z0 + BLOCK - t) : z0 + u; for (const a of [0, 1.1, 2.2]) L.grass.push(new THREE.PlaneGeometry(0.22, 0.18).translate(0, 0.09, 0).rotateY(a).translate(x, 0.16, z)); }
@@ -14808,6 +14826,347 @@ function updateWorld12(dt, rawDt, t, speed) {
   if (interior?.id === 'appart') avatarSpot(interior);
   if (!sharpenTextures.done && car.ready) { sharpenTextures.done = true; sharpenTextures(); }
 }
+
+// ---------- real models: CC0 cars (grab3d), CC0 street props and plants (Poly Haven), the Khronos concept car and fox ----------
+// Everything lives on function properties: blocks and the first cars are built while the page is still loading,
+// before the module-level code down here has run.
+function realAssets() {
+  return realAssets.s ||= { cars: {}, props: {}, fox: null, pending: 0, started: false, done: false, waiting: [] };
+}
+const REAL_CAR_FILES = ['1990s-sedan', '1980s-sedan', '1970s-sedan', 'compact-car', '1990s-compact-car', 'hatchback', '1990s-hatchback', '1990s-suv', '1990s-off-roader',
+  'muscle-car', 'police-car', '1990s-police-car', '1990s-taxi', '1990s-delivery-van', 'minivan', '1990s-pickup-truck', 'station-wagon', '1990s-sports-car', 'electric-car',
+  'rally-car', 'dune-buggy', 'convertible', 'classic-car', 'limousine', 'lowrider', 'coupe', '1960s-sports-car', '1980s-sports-car', 'CarConcept'];
+const REAL_PROP_FILES = ['fire_hydrant', 'metal_trash_can', 'trashbag', 'painted_wooden_bench', 'utility_box_01', 'utility_box_02', 'planter_box_02', 'potted_plant_02',
+  'shrub_03', 'shrub_02', 'fern_02', 'wooden_crate_01', 'Barrel_01', 'plastic_crate_01', 'concrete_road_barrier', 'covered_car', 'water_manhole_cover', 'rock_07'];
+// the procedural kinds and the models that can stand in for them (traffic, rivals, parked cars…)
+const REAL_KINDS = {
+  citadine: ['compact-car', '1990s-compact-car', 'hatchback', '1990s-hatchback', 'electric-car'],
+  sedan: ['1990s-sedan', '1980s-sedan', '1970s-sedan', 'station-wagon', 'coupe', '1990s-sedan'],
+  suv: ['1990s-suv', '1990s-off-roader', 'minivan', '1990s-pickup-truck', '1990s-delivery-van'],
+  muscle: ['muscle-car', 'lowrider', '1980s-sports-car', '1960s-sports-car'],
+  hyper: ['1990s-sports-car', '1980s-sports-car'],
+};
+// the player's own cars, one model each
+const PLAYER_REAL = {
+  citadine: 'hatchback', suv: '1990s-suv', muscle: 'muscle-car', taxi: '1990s-taxi', interceptor: '1990s-police-car', retro: 'classic-car', rallye: 'rally-car',
+  volt: 'electric-car', ancetre: '1990s-compact-car', vieuxmuscle: '1960s-sports-car', cabriolet: 'convertible', aurore: 'coupe', titan: '1990s-pickup-truck',
+  bulldozer: '1990s-off-roader', baron: 'limousine', buggy: 'dune-buggy', eclair: 'CarConcept', hyper: 'CarConcept', spectre: 'CarConcept', mirage: 'CarConcept',
+  vipere: '1990s-sports-car', dragon: 'CarConcept', masque: '1980s-sports-car', faucon: 'CarConcept', nuitblanche: 'CarConcept',
+};
+const NO_REPAINT = new Set(['police-car', '1990s-police-car', '1990s-taxi']); // keep their livery in traffic
+
+function realCarsOk() { const s = realAssets(); return s.done && Object.keys(s.cars).length > 0; }
+function realCarsWhen(fn) { const s = realAssets(); if (s.done) fn(); else s.waiting.push(fn); }
+function startRealAssets() {
+  const s = realAssets();
+  if (s.started) return; s.started = true;
+  const one = () => { if (--s.pending > 0) return; s.done = true; try { propPools(); realParkPools(); warmRealTextures(); } catch (e) { console.error(e); } const w = s.waiting.splice(0); for (const fn of w) { try { fn(); } catch (e) { console.error(e); } } };
+  const load = (url, ok) => { s.pending++; gltfLoader.load(url, (g) => { try { ok(g); } catch (e) { console.error(e); } one(); }, undefined, () => one()); };
+  for (const n of REAL_CAR_FILES) load('assets/cars/' + n + '.glb', (g) => { s.cars[n] = prepRealCar(g.scene, n); });
+  for (const n of REAL_PROP_FILES) load('assets/models/' + n + '.glb', (g) => { s.props[n] = g.scene; });
+  load('assets/models/Fox.glb', (g) => { s.fox = g; });
+}
+
+// send every texture of the models to the GPU while the loading screen is up (no hitch on the first frames)
+function warmRealTextures() {
+  const s = realAssets(), seen = new Set();
+  const warm = (root) => root?.traverse(o => { if (!o.isMesh) return; for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } });
+  for (const c of Object.values(s.cars)) warm(c.scene);
+  for (const p of Object.values(s.props)) warm(p);
+  warm(s.fox?.scene);
+}
+// the body paint lives in one flat colour of the texture atlas: swap that colour for the car's paint, keep lamps, grilles and seams
+function paintKeyOf(map) {
+  const img = map?.image; if (!img) return null;
+  const c = document.createElement('canvas'), N = 128; c.width = c.height = N;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, N, N);
+  const d = g.getImageData(0, 0, N, N).data, hist = new Map();
+  for (let k = 0; k < d.length; k += 4) {
+    const r = d[k], gg = d[k + 1], b = d[k + 2], mx = Math.max(r, gg, b), sat = mx - Math.min(r, gg, b); if (mx < 110) continue; // the paint is a light pastel tint
+    const key = (r >> 4) << 8 | (gg >> 4) << 4 | (b >> 4), e = hist.get(key) || [0, 0, 0, 0, sat > 22];
+    e[0]++; e[1] += r; e[2] += gg; e[3] += b; hist.set(key, e);
+  }
+  let best = null; for (const e of hist.values()) if (e[4] && (!best || e[0] > best[0])) best = e;
+  if (!best || best[0] < N * N * 0.03) for (const e of hist.values()) if (!best || e[0] > best[0]) best = e;
+  if (!best) return null;
+  return new THREE.Color().setRGB(best[1] / best[0] / 255, best[2] / best[0] / 255, best[3] / best[0] / 255, THREE.SRGBColorSpace);
+}
+function paintable(mat, key) {
+  mat.userData.paintKey = { value: key ? new THREE.Vector3(key.r, key.g, key.b) : new THREE.Vector3(-9, -9, -9) };
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev.call(mat, sh, r);
+    sh.uniforms.uPaintKey = mat.userData.paintKey;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPaintKey;')
+      .replace('#include <map_fragment>', `float paintK = 1.0;
+        #ifdef USE_MAP
+          vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+          float paintL = dot( sampledDiffuseColor.rgb, vec3( 0.333 ) ) / max( dot( uPaintKey, vec3( 0.333 ) ), 0.01 );
+          paintK = ( 1.0 - smoothstep( 0.025, 0.06, distance( normalize( sampledDiffuseColor.rgb + 0.001 ), normalize( uPaintKey + 0.001 ) ) ) ) * smoothstep( 0.3, 0.5, paintL ) * ( 1.0 - smoothstep( 1.5, 1.9, paintL ) );
+          float paintShade = clamp( paintL, 0.5, 1.2 );
+          vec3 paintCol = diffuseColor.rgb;
+          #ifdef USE_COLOR
+            paintCol *= vColor.rgb;
+          #endif
+          diffuseColor.rgb = mix( sampledDiffuseColor.rgb, paintCol * paintShade, paintK );
+        #endif`)
+      .replace('#include <color_fragment>', '')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix( 0.15, metalnessFactor, paintK );')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix( 0.55, roughnessFactor, paintK );');
+  };
+  return mat;
+}
+
+// a loaded car scene → its parts sorted out once: body (one or several meshes), glass, rims, the four wheels, the paint colour
+function prepRealCar(scene, name) {
+  scene.updateMatrixWorld(true);
+  const info = { scene, name, body: [], wheels: {}, key: null, bodyMat: null, lift: 0 };
+  const concept = name === 'CarConcept';
+  scene.traverse(o => {
+    if (o.isMesh) {
+      const mn = o.material.name || '';
+      if (concept ? mn === 'PaletteMaterial007' : /_body$/.test(o.name) && /body/.test(mn)) info.body.push(o);
+    }
+    const m = concept ? /^Wheel(Front|Rear)(L|R)$/.exec(o.name) : /_wheel_(fl|fr|rl|rr)$/.exec(o.name);
+    if (m) info.wheels[concept ? (m[1] === 'Front' ? 'f' : 'r') + m[2].toLowerCase() : m[1]] = o.name;
+  });
+  if (info.body[0]) { info.bodyMat = info.body[0].material; if (!concept) info.key = paintKeyOf(info.bodyMat.map); }
+  // rest the tyres on the ground
+  let low = Infinity; const b = new THREE.Box3();
+  for (const wn of Object.values(info.wheels)) { b.setFromObject(scene.getObjectByName(wn)); low = Math.min(low, b.min.y); }
+  info.lift = isFinite(low) ? -low : 0;
+  return info;
+}
+
+// build a drivable car from a model: same contract as buildProcCar → { model, wheels, layout } (front toward -z)
+function buildRealCar(name, bodyMat, glassMat, rimM, opts = {}) {
+  const R = realAssets().cars[name]; if (!R) return null;
+  const root = R.scene.clone(true), model = new THREE.Group(), inner = new THREE.Group();
+  inner.rotation.y = Math.PI; inner.position.y = R.lift; inner.add(root); model.add(inner);
+  const keep = opts.keepLivery || NO_REPAINT.has(name) && opts.traffic;
+  // the paint: the car's own material gets the model's texture maps and the colour swap
+  if (bodyMat && !keep) {
+    const src = R.bodyMat;
+    if (R.key && src) { bodyMat.map = src.map; bodyMat.normalMap = src.normalMap; bodyMat.roughnessMap = src.roughnessMap; bodyMat.metalnessMap = src.metalnessMap; paintable(bodyMat, R.key); }
+  }
+  let biggest = null, bigN = -1;
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    const mn = o.material.name || '';
+    if (R.body.some(b => b.name === o.name)) { if (bodyMat && !keep) o.material = bodyMat; const n = o.geometry.attributes.position.count; if (n > bigN) { bigN = n; biggest = o; } }
+    else if (/window|glass|Windshield|Window/.test(o.name + mn) && glassMat) o.material = glassMat;
+    else if (/rim/i.test(mn) && rimM) o.material = rimM;
+  });
+  if (biggest) biggest.name = 'body';
+  model.updateMatrixWorld(true);
+  // wheels: re-hung on pivots in the car's own frame so spin and steer turn the right way
+  const wheels = {}, wp = new THREE.Vector3(), wq = new THREE.Quaternion();
+  for (const k of ['fl', 'fr', 'rl', 'rr']) {
+    const node = R.wheels[k] && root.getObjectByName(R.wheels[k]); if (!node) continue;
+    node.getWorldPosition(wp); node.getWorldQuaternion(wq);
+    const pivot = new THREE.Group(); pivot.position.copy(wp); pivot.rotation.order = 'YXZ'; pivot.name = 'wheel_' + k;
+    model.add(pivot); pivot.add(node); node.position.set(0, 0, 0); node.quaternion.copy(wq);
+    wheels[k] = pivot;
+  }
+  // body box → light positions, hood camera, tuning anchors
+  const box = new THREE.Box3();
+  root.traverse(o => { if (o.isMesh && !/wheel|Wheel|Interior|Under|Engine|Axle|mesh_9/.test(o.name)) box.expandByObject(o); });
+  const W = box.max.x - box.min.x, H = box.max.y, L = box.max.z - box.min.z, front = box.min.z, rear = box.max.z;
+  const hy = Math.max(0.5, 0.2 + 0.38 * Math.min(H, 1.45)), hood = Math.min(H - 0.18, 0.25 + 0.55 * H);
+  const layout = { head: { x: W / 2 - 0.3, y: hy, z: front + 0.14 }, tail: { x: W / 2 - 0.27, y: hy + 0.1, z: rear - 0.1 }, glow: [0.12, 0.045, 0.045], tailScale: [0.06, 0.04, 0.03],
+    rear, halfW: W / 2, hood, hoodZ: front * 0.36, len: L, W, exhaustY: 0.3 };
+  const ao = new THREE.Mesh(aoShared.geo, aoShared.mat);
+  ao.rotation.x = -Math.PI / 2; ao.position.y = 0.006; ao.renderOrder = 2; ao.layers.set(GROUND); ao.scale.set(W / 1.95, L / 4.5, 1);
+  model.add(ao);
+  return { model, wheels, layout, real: name, tune: { deckY: hy + 0.25, rearZ: rear - 0.45, plateY: hy - 0.12, plateZ: rear + 0.02 } };
+}
+// which model a procedural kind turns into (deterministic per call order, varied across the street)
+function realPick(kind) {
+  const list = REAL_KINDS[kind]; if (!list) return null;
+  realPick.n = (realPick.n || 0) + 1;
+  const s = realAssets().cars, ok = list.filter(n => s[n]);
+  return ok.length ? ok[(realPick.n * 7 + Math.floor(Math.random() * 3)) % ok.length] : null;
+}
+
+// ---------- the police car: the real patrol model plus the flashing bar the chase code drives ----------
+function realPoliceMesh() {
+  const pc = buildRealCar('police-car', new THREE.MeshStandardMaterial({ color: 0x14161b, metalness: 0.7, roughness: 0.3 }), trafficGlass, rimMat, { keepLivery: true });
+  if (!pc) return null;
+  const top = pc.layout.hood + 0.55, rz = 0.15;
+  const box = new THREE.Box3().setFromObject(pc.model);
+  const roofY = Math.min(box.max.y, 1.75);
+  const red = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.24), policeRedMat); red.position.set(-0.3, roofY + 0.02, rz);
+  const blue = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.24), policeBlueMat); blue.position.set(0.3, roofY + 0.02, rz);
+  pc.model.add(red, blue);
+  return { ...pc, flash: [red, blue], top };
+}
+
+// ---------- parked cars: instanced real models (one merged mesh per material) ----------
+// a model flattened into its own frame: one geometry per material, ready for InstancedMesh
+function flattenModel(obj, opts = {}) {
+  obj.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(obj.matrixWorld).invert(), byMat = new Map();
+  obj.traverse(o => {
+    if (!o.isMesh || o.name === 'aoPlane' || o.material === aoShared?.mat) return;
+    const g = o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    const geo = new THREE.BufferGeometry();
+    const src = g.index ? g.toNonIndexed() : g;
+    geo.setAttribute('position', src.attributes.position);
+    if (!src.attributes.normal) src.computeVertexNormals();
+    geo.setAttribute('normal', src.attributes.normal);
+    geo.setAttribute('uv', src.attributes.uv || new THREE.BufferAttribute(new Float32Array(src.attributes.position.count * 2), 2));
+    const key = o.material.uuid;
+    if (!byMat.has(key)) byMat.set(key, { mat: o.material, list: [] });
+    byMat.get(key).list.push(geo);
+  });
+  const parts = [];
+  for (const { mat, list } of byMat.values()) {
+    const geo = mergeGeometries(list); list.forEach(x => x.dispose());
+    if (geo) { geo.computeBoundingSphere(); parts.push({ geo, mat }); }
+  }
+  return parts;
+}
+// an instanced pool built from flattened parts
+function makeInstPool(parts, max, shadow) {
+  const meshes = parts.map(({ geo, mat }) => {
+    const m = new THREE.InstancedMesh(geo, mat, max); m.count = 0; m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m;
+  });
+  return { meshes, n: 0, max };
+}
+function poolAdd(P, m4, col) {
+  if (P.n >= P.max) return false;
+  for (const m of P.meshes) { m.setMatrixAt(P.n, m4); if (col && m.userData.paint) m.setColorAt(P.n, col); }
+  P.n++; return true;
+}
+function poolEnd(P) { for (const m of P.meshes) { m.count = P.n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
+
+const REAL_PARK = ['1990s-sedan', '1980s-sedan', 'compact-car', 'hatchback', '1990s-hatchback', '1990s-suv', 'station-wagon', 'minivan', '1990s-pickup-truck', 'coupe', '1970s-sedan', 'electric-car'];
+function realParkPools() {
+  if (realParkPools.p) return realParkPools.p;
+  const pools = [];
+  for (const n of REAL_PARK) {
+    const R = realAssets().cars[n]; if (!R) continue;
+    const body = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.7, roughness: 0.32 });
+    const pc = buildRealCar(n, body, trafficGlass, rimMat); if (!pc) continue;
+    const parts = flattenModel(pc.model);
+    const P = makeInstPool(parts, 40, true);
+    P.meshes.forEach((m, k) => { if (parts[k].mat === body) { m.userData.paint = true; m.setColorAt(0, new THREE.Color(1, 1, 1)); } });
+    P.name = n; pools.push(P);
+  }
+  const cov = realAssets().props.covered_car;
+  if (cov) { const P = makeInstPool(flattenModel(cov), 24, true); P.name = 'covered'; P.covered = true; pools.push(P); }
+  return (realParkPools.p = pools);
+}
+const _rpM = new THREE.Matrix4(), _rpQ = new THREE.Quaternion(), _rpUp = new THREE.Vector3(0, 1, 0), _rpOne = new THREE.Vector3(1, 1, 1), _rpC = new THREE.Color(), _rpV = new THREE.Vector3();
+function realParkBegin() { if (!realCarsOk()) return; for (const P of realParkPools()) P.n = 0; }
+function realPark(x, z, yaw, seed) {
+  const pools = realParkPools(); if (!pools.length) return;
+  const h = Math.abs(Math.floor(seed * 7919));
+  const cars = pools.filter(P => !P.covered), cov = pools.find(P => P.covered);
+  const P = cov && h % 23 === 0 ? cov : cars[h % cars.length];
+  // the covered-car model lies along x; the car models along z
+  _rpQ.setFromAxisAngle(_rpUp, yaw + (P.covered ? Math.PI / 2 : 0));
+  _rpM.compose(_rpV.set(x, 0, z), _rpQ, _rpOne);
+  poolAdd(P, _rpM, _rpC.setHex(PK_COLS[h % PK_COLS.length]));
+}
+function realParkEnd() { if (!realCarsOk()) return; for (const P of realParkPools()) poolEnd(P); }
+
+// ---------- street props: recorded per block while it is built, instanced around you once the models are in ----------
+// hoisted helpers for the block builder
+function mpick2(a, r) { return a[Math.floor(Math.abs(r) * a.length) % a.length]; }
+function BENCH_YAW() { return 0; }
+function realProp(info, t, x, z, yaw = 0, s = 1, y = 0.16) { (info.realProps ||= []).push({ t, x, z, yaw, s, y }); }
+// type → model file, which of its variants (meshes side by side in the file), shadow, pool size
+const PROP_DEFS31 = {
+  hydrant: ['fire_hydrant', true, 120], bin: ['metal_trash_can', true, 200], bag: ['trashbag', false, 260], bench: ['painted_wooden_bench', true, 120],
+  box1: ['utility_box_01', true, 80], box2: ['utility_box_02', true, 80], planter: ['planter_box_02', true, 120], pot: ['potted_plant_02', true, 160],
+  shrub: ['shrub_03', true, 200], shrub2: ['shrub_02', true, 120], fern: ['fern_02', false, 200], crate: ['wooden_crate_01', true, 160], barrel: ['Barrel_01', true, 160],
+  pcrate: ['plastic_crate_01', false, 160], barrier: ['concrete_road_barrier', true, 120], manhole: ['water_manhole_cover', false, 160], rock: ['rock_07', true, 120],
+};
+// a prop file → its variants: each top-level mesh group, recentred on x/z with its base at y = 0
+function propVariants(file) {
+  const cache = propVariants.c ||= {};
+  if (cache[file]) return cache[file];
+  const src = realAssets().props[file]; if (!src) return null;
+  src.updateMatrixWorld(true);
+  const groups = [];
+  const top = src.children.length === 1 && !src.children[0].isMesh ? src.children[0] : src;
+  for (const c of top.children) { let has = false; c.traverse(o => { if (o.isMesh) has = true; }); if (has) groups.push(c); }
+  if (!groups.length) groups.push(src);
+  const out = [];
+  for (const g of groups) {
+    const box = new THREE.Box3().setFromObject(g), ctr = box.getCenter(new THREE.Vector3());
+    const holder = new THREE.Group(); holder.position.set(-ctr.x, -box.min.y, -ctr.z);
+    const clone = g.clone(true); clone.applyMatrix4(g.parent.matrixWorld); holder.add(clone);
+    const wrap = new THREE.Group(); wrap.add(holder);
+    out.push({ parts: flattenModel(wrap), size: box.getSize(new THREE.Vector3()) });
+  }
+  return (cache[file] = out);
+}
+function propPools() {
+  if (propPools.p) return propPools.p;
+  const pools = {};
+  for (const [t, [file, shadow, max]] of Object.entries(PROP_DEFS31)) {
+    const vars = propVariants(file); if (!vars) continue;
+    pools[t] = vars.map(v => ({ ...makeInstPool(v.parts, Math.ceil(max / vars.length) + 8, shadow), size: v.size }));
+  }
+  return (propPools.p = pools);
+}
+let realPropSig = '', realPropT = 0;
+function rebuildRealProps() {
+  const pools = propPools();
+  for (const vs of Object.values(pools)) for (const P of vs) P.n = 0;
+  for (const b of blocks.values()) for (const p of b.realProps || []) {
+    const vs = pools[p.t]; if (!vs) continue;
+    const h = Math.abs(Math.floor(p.x * 13.1 + p.z * 7.7)), P = vs[h % vs.length];
+    _rpQ.setFromAxisAngle(_rpUp, p.yaw);
+    _rpM.compose(_rpV.set(p.x, p.y, p.z), _rpQ, new THREE.Vector3(p.s, p.s, p.s));
+    poolAdd(P, _rpM);
+  }
+  for (const vs of Object.values(pools)) for (const P of vs) poolEnd(P);
+}
+function updateRealProps(dt) {
+  if (!realCarsOk()) return;
+  realPropT -= dt;
+  if (realPropT <= 0) {
+    realPropT = 0.5;
+    let sig = 0; for (const b of blocks.values()) sig = (sig * 31 + b.i * 977 + b.j * 131 + (b.realProps?.length || 0)) | 0;
+    const s = String(sig) + ':' + blocks.size;
+    if (s !== realPropSig) { realPropSig = s; rebuildRealProps(); }
+  }
+  const show = !interior;
+  for (const vs of Object.values(propPools())) for (const P of vs) for (const m of P.meshes) m.visible = show;
+  for (const P of realParkPools()) for (const m of P.meshes) m.visible = show;
+}
+
+// ---------- the fox: the animated Khronos model trotting in place of the box fox ----------
+function makeRealFox() {
+  const A = realAssets().fox; if (!A) return null;
+  const g = new THREE.Group(), m = SkeletonUtils.clone(A.scene);
+  const box = new THREE.Box3().setFromObject(A.scene), len = box.max.z - box.min.z || 1;
+  const s = 0.95 / len; m.scale.setScalar(s); m.rotation.y = Math.PI;
+  m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  g.add(m); g.legs = [];
+  const mixer = new THREE.AnimationMixer(m), clip = (n) => A.animations.find(a => a.name === n) || A.animations[0];
+  g.fox = { mixer, walk: mixer.clipAction(clip('Walk')), run: mixer.clipAction(clip('Run')), cur: null };
+  scene.add(g);
+  return g;
+}
+function updateRealFoxes(dt) {
+  for (const f of fauna.foxes) {
+    const F = f.g.fox; if (!F || !f.g.visible) continue;
+    const want = f.flee > 0 ? F.run : F.walk;
+    if (F.cur !== want) { F.cur?.fadeOut(0.25); want.reset().fadeIn(0.25).play(); F.cur = want; }
+    F.mixer.update(dt);
+  }
+}
+
+function updateWorld13(dt) {
+  updateRealProps(dt);
+  updateRealFoxes(dt);
+}
+startRealAssets();
 
 // ---------- sparks and dents ----------
 // Collisions report a contact point and the obstacle's outward normal (the strongest one of the
@@ -15259,6 +15618,7 @@ renderer.setAnimationLoop(() => {
   updateWorld10(dt, rawDt, t, speed);
   updateWorld11(dt, rawDt, t, speed);
   updateWorld12(dt, rawDt, t, speed);
+  updateWorld13(dt);
   updateBubbles(dt);
   updateFleeing(dt);
   if ((progTimer -= dt) <= 0) { progTimer = 1; checkCounters(); flushProgress(); }
