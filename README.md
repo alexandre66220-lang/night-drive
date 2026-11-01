@@ -27,6 +27,7 @@ Ouvrir la page avec `?selftest` lance une série de vérifications automatiques 
 ## Crédits des modèles 3D
 
 - Voitures, bus, camions, arbres, château d’eau et objets de rue : [grab3d.com](https://grab3d.com/models/) — CC0.
-- Mobilier urbain, plantes et rochers : [Poly Haven](https://polyhaven.com/models) — CC0.
+- Mobilier urbain, plantes, rochers et textures de route et de trottoir : [Poly Haven](https://polyhaven.com) — CC0.
+- Passants et livreurs : [grab3d.com](https://grab3d.com/models/characters/) — CC0.
 - « Car Concept » : Eric Chadwick / Darmstadt Graphics Group, [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) — CC BY 4.0.
 - Renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) — Khronos glTF Sample Assets.

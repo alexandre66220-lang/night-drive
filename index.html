@@ -313,7 +313,7 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes et rochers <b>Poly Haven</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers et textures de route et de trottoir <b>Poly Haven</b> (CC0) · passants et livreurs <b>grab3d.com</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
     <button data-m="back">← Retour</button></div>
@@ -10136,7 +10136,7 @@ async function runSelfTest() {
   await check('Succès secrets cachés', async () => { toggleJournal(); await wait(200); for (const t of PANEL_TABS.journal) { switchPanelTab(t[0]); if (shopEl.textContent.includes('Succès secret')) break; } const ok = shopEl.textContent.includes('Succès secret'); closeShop(); return ok || 'secrets visibles'; });
   await check('Didacticiels et statistiques', async () => (HINTS.filter(h => h[0].startsWith('t_')).length >= 14 && statsHtml((t, b) => b).includes('Distance totale') && (prog.st2?.sec || 0) > 0) || 'tutos/stats');
   await check('Balade zen', async () => { toggleZen(); addHeat(200, 'TEST'); const calm = !police.stars && offerChallenge() === false; toggleZen(); return calm || 'la police vient quand même'; });
-  await check('Passants réalistes', async () => { const n = peds.filter(p => p.umb !== undefined).length; const H = HUMANS.list.length; let upright = true; for (const h of HUMANS.list) { const c = humanClone(); const mx = new THREE.AnimationMixer(c.inner); mx.clipAction(c.clips.walk).play(); mx.update(0.4); c.root.updateMatrixWorld(true); const g = (n2) => { const o = c.inner.getObjectByName(n2) || c.inner.getObjectByName('mixamorig' + n2); const v = new THREE.Vector3(); o.getWorldPosition(v); return v.y; }; if (!(g('Head') > g('LeftFoot') + 1 && g('LeftHand') < g('LeftArm'))) upright = false; } return (H === 2 && n >= PED_N * 0.8 && upright) || `modèles=${H} passants humains=${n} debout=${upright}`; });
+  await check('Passants réalistes', async () => { const n = peds.filter(p => p.umb !== undefined).length; const H = HUMANS.list.length; let upright = true; for (const h of HUMANS.list) { const c = humanClone(undefined, [h.name]); const mx = new THREE.AnimationMixer(c.inner); mx.clipAction(c.clips.walk).play(); mx.update(0.4); c.root.updateMatrixWorld(true); const g = (n2) => { const o = c.inner.getObjectByName(n2) || c.inner.getObjectByName('mixamorig' + n2); const v = new THREE.Vector3(); o.getWorldPosition(v); return v.y; }; if (!(g('Head') > g('LeftFoot') + 0.7 && g('LeftHand') < g('LeftArm'))) upright = false; } return (H >= 16 && n >= PED_N * 0.8 && upright) || `modèles=${H} passants humains=${n} debout=${upright}`; });
   await check('Voitures de trafic détaillées', async () => { const pc = buildProcCar('sedan', new THREE.MeshStandardMaterial(), undefined, undefined, null); let interior = false, plates = 0; pc.model.traverse(o => { if (o.material === interiorMat) interior = true; if (o.name === 'autoPlate') plates++; }); return (interior && plates === 2) || `intérieur=${interior} plaques=${plates}`; });
   await check('Dégâts visibles', async () => { await ownCar(); const d0 = car.damage; car.damage = 0.8; await wait(200); const ok = !!dmgVis.crack && !!dmgVis.bumper; car.damage = d0; setDamage(d0); await wait(200); return ok || 'pas de fissure'; });
   await check('Fumée de pneus', async () => { const n0 = puffs.filter(p => p.life > 0).length; for (let k = 0; k < 20; k++) emitPuff(car.pos.x, 0.5, car.pos.z, 0, 1, 0, 1, 0.5, 3, 0.4, [0.8, 0.8, 0.8]); await wait(100); return puffs.filter(p => p.life > 0).length > n0 || 'pas de fumée'; });
@@ -10145,8 +10145,8 @@ async function runSelfTest() {
   await check('Voitures garées et mobilier urbain', async () => { await ownCar(); teleportTo('depart'); await wait(800); const parkedN = Object.values(pkPool).reduce((a, P) => a + P.body.count, 0) + (realCarsOk() ? realParkPools().reduce((a, P) => a + P.n, 0) : 0); const b = [...blocks.values()].find(q => CITY_WALK.includes(q.district) && q.benches); let solid = false; b?.group.traverse(o => { if (o.material === vcSolidMat()) solid = true; }); return (parkedN > 10 && solid) || `garées=${parkedN} mobilier=${solid}`; });
   await check('Écrans géants et ciel animé', async () => { await wait(300); return (screens().length === 3 && !!sky30.heli && sky30.planes.length === 2) || 'ciel'; });
   await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + 2) % 3; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
-  await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(100); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(200); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
-  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['oak', 'maple', 'birch', 'olive', 'autumn', 'cypress'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
+  await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(400); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(500); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
+  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['oak', 'maple', 'birch', 'olive', 'autumn', 'cypress'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); const people = HUMANS.list.filter(L => L.kind === 'g3d').length, riders = couriers.filter(c => c.real).length; if (people < 12 || !upgradeGround.done) return `personnages=${people} sol=${!!upgradeGround.done}`; return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -11814,6 +11814,7 @@ function updatePileups(dt, t) {
 }
 const couriers = [];
 function makeCourier() {
+  const rc = makeRealCourier(); if (rc) return rc;
   const g = new THREE.Group(), scooter = Math.random() < 0.5, col = mpick([0x30ff90, 0xff8a2a, 0x22d3ff, 0xffd23a]);
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.6 })); frame.position.y = scooter ? 0.2 : 0.6; g.add(frame);
   for (const z of [-0.5, 0.5]) { const w = new THREE.Mesh(scooter ? new THREE.CylinderGeometry(0.12, 0.12, 0.06, 12).rotateZ(Math.PI / 2) : new THREE.TorusGeometry(0.3, 0.03, 6, 18).rotateY(Math.PI / 2), tyreMat); w.position.set(0, scooter ? 0.12 : 0.32, z); g.add(w); }
@@ -13895,7 +13896,7 @@ function retargetHumanClip(H, clipName) {
   const src = SkeletonUtils.clone(pedAsset.scene), tgt = SkeletonUtils.clone(H.gltf.scene);
   src.updateMatrixWorld(true); tgt.updateMatrixWorld(true);
   const sB = {}, tB = []; src.traverse(o => { if (o.isBone) sB[o.name] = o; }); tgt.traverse(o => { if (o.isBone) tB.push(o); });
-  const map = new Map(); for (const b of tB) { const sn = H.kind === 'rpm' ? 'mixamorig' + b.name : b.name; if (sB[sn]) map.set(b, sB[sn]); }
+  const map = new Map(); for (const b of tB) { const sn = H.kind === 'rpm' ? 'mixamorig' + b.name : H.kind === 'g3d' ? 'mixamorig' + ({ Spine02: 'Spine', Spine01: 'Spine1', Spine: 'Spine2', neck: 'Neck' }[b.name] || b.name) : b.name; if (sB[sn]) map.set(b, sB[sn]); }
   const wq = (o) => o.getWorldQuaternion(new THREE.Quaternion()), wp = (o) => o.getWorldPosition(new THREE.Vector3());
   const restS = new Map(), restT = new Map();
   for (const [b, sb] of map) {
@@ -13922,20 +13923,29 @@ function humanClips(H) {
   for (const n of ['walk', 'idle', 'run']) if (pedAsset.animations.some(a => a.name === n)) out[n] = retargetHumanClip(H, n);
   return out;
 }
-function registerHuman(gltf, kind) {
+function registerHuman(gltf, kind, o2 = {}) {
   const box = new THREE.Box3().setFromObject(gltf.scene), h = box.max.y - box.min.y;
   gltf.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (/Eye|Teeth/.test(o.name)) o.visible = false; } });
-  HUMANS.list.push({ gltf, kind, k: 1.74 / (h || 1.74), y0: -box.min.y, clips: null });
+  HUMANS.list.push({ gltf, kind, k: (o2.h || 1.74) / (h || 1.74), y0: -box.min.y, clips: null, name: o2.name || kind, rare: !!o2.rare });
 }
 function humansDone() { if (--HUMANS.pending === 0 && pedAsset && !peds.length) initPeds(); }
 gltfLoader.load(ASSETS + 'models/gltf/Michelle.glb', (g) => { registerHuman(g, 'michelle'); humansDone(); }, undefined, () => humansDone());
 gltfLoader.load(ASSETS + 'models/gltf/readyplayer.me.glb', (g) => { registerHuman(g, 'rpm'); humansDone(); }, undefined, () => humansDone());
+// grab3d (CC0) townsfolk: [file, height in m, rare = a uniform you only see now and then]
+for (const [n, h, rare] of [['businessman', 1.8], ['man', 1.78], ['woman', 1.68], ['teen-character', 1.64], ['elderly-man', 1.72], ['elderly-woman', 1.6], ['man-base-character', 1.78],
+  ['child', 1.3], ['doctor', 1.78, 1], ['nurse', 1.66, 1], ['chef', 1.78, 1], ['farmer', 1.78, 1], ['police-officer', 1.8, 1], ['firefighter', 1.8, 1]]) {
+  HUMANS.pending++; realAssets().pending++; // the first cars also wait for them, so the game starts with everything in memory
+  gltfLoader.load('assets/people/' + n + '.glb', (g) => { registerHuman(g, 'g3d', { name: n, h, rare: !!rare }); humansDone(); realAssets().one?.(); }, undefined, () => { humansDone(); realAssets().one?.(); });
+}
 const SKIN = [0xf2d0b8, 0xd8a888, 0xa87050, 0x6a4430, 0xe8c0a0];
 const CLOTHES = [0x1a1c22, 0x2a3550, 0x6a1a1a, 0x30a050, 0xe8e0c8, 0x8a6a42, 0x4a4a52, 0xc8322a, 0x2a6aff, 0xffd23a, 0x22262e, 0xf2f2ee];
 // a person: random model, random clothes (outfit pieces of the man are tinted one by one)
-function humanClone(tint) {
+function humanClone(tint, names) {
   if (!HUMANS.list.length || !pedAsset) return null;
-  const H = mpick(HUMANS.list), root = SkeletonUtils.clone(H.gltf.scene);
+  let H = mpick(HUMANS.list);
+  if (names) { const c = HUMANS.list.filter(L => names.includes(L.name)); if (c.length) H = mpick(c); }
+  else if (H.rare && Math.random() < 0.75) H = mpick(HUMANS.list.filter(L => !L.rare)) || H; // uniforms stay rare in the crowd
+  const root = SkeletonUtils.clone(H.gltf.scene);
   H.clips ||= humanClips(H);
   const skin = new THREE.Color(mpick(SKIN));
   root.traverse(o => {
@@ -14908,6 +14918,7 @@ function startRealAssets() {
   for (const n of REAL_OBJ_FILES) load('assets/models/' + n + '.glb', (g) => { s.props[n] = g.scene; (s.whole ||= new Set()).add(n); });
   load('assets/buildings/water-tower.glb', (g) => { s.props['water-tower'] = g.scene; (s.whole ||= new Set()).add('water-tower'); });
   load('assets/models/Fox.glb', (g) => { s.fox = g; });
+  s.one = one; s.pending++; upgradeGround(one);
 }
 
 // send every texture of the models to the GPU while the loading screen is up (no hitch on the first frames)
@@ -15211,7 +15222,66 @@ function updateRealFoxes(dt) {
   }
 }
 
+// a delivery rider on a real bicycle, e-scooter or moped, legs bent on the pedals or standing on the deck
+function rideClip(H) {
+  if (H.ride) return H.ride;
+  const idle = H.clips.idle, q = new THREE.Quaternion(), add = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0);
+  const tracks = idle.tracks.map(t => {
+    const nm = t.name.split('.')[0].replace(/^mixamorig/, ''), v = t.values.slice();
+    const a = /^(Left|Right)UpLeg$/.test(nm) ? -1.0 : /^(Left|Right)Leg$/.test(nm) ? 1.1 : 0;
+    if (a) { add.setFromAxisAngle(X, a); for (let k = 0; k < v.length; k += 4) { q.fromArray(v, k).multiply(add); q.toArray(v, k); } }
+    return new THREE.QuaternionKeyframeTrack(t.name, t.times, v);
+  });
+  return (H.ride = new THREE.AnimationClip('ride', idle.duration, tracks));
+}
+function makeRealCourier() {
+  const s = realAssets(); if (!s.done || !HUMANS.list.length || !pedAsset) return null;
+  const kind = mpick(['bicycle', 'e-scooter', 'moped']), src = s.props[kind]; if (!src) return null;
+  const g = new THREE.Group(), ride = src.clone(true), stand = kind === 'e-scooter';
+  ride.rotation.y = Math.PI; // the models face +z, the riders ride toward -z
+  ride.traverse(o => { if (o.isMesh) { o.castShadow = true; o.layers.set(GROUND); } }); g.add(ride);
+  const col = mpick([0x30ff90, 0xff8a2a, 0x22d3ff, 0xffd23a]);
+  const h = humanClone(col, ['man', 'man-base-character', 'teen-character', 'woman', 'businessman']);
+  let mixer = null;
+  if (h) {
+    const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0];
+    h.root.position.set(0, stand ? 0.14 : kind === 'moped' ? -0.12 : -0.02, stand ? 0.05 : 0.2); h.root.rotation.y = Math.PI; g.add(h.root); // people face +z, riders face the way they ride
+    mixer = new THREE.AnimationMixer(h.inner); mixer.clipAction(stand ? h.clips.idle : rideClip(H)).play();
+  }
+  const bag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.38), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 }));
+  bag.position.set(0, stand ? 1.5 : 1.3, 0.45); bag.castShadow = true; g.add(bag);
+  scene.add(g);
+  return { g, mixer, x: 0, z: 0, dir: 0, v: kind === 'bicycle' ? 5 : 6.5, ph: Math.random() * 6, fall: 0, placed: false, real: kind };
+}
+
+// ---------- ground: Poly Haven photo textures (CC0) under the puddles, with their normal and roughness maps ----------
+function upgradeGround(cb) {
+  const load = (u) => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = u; });
+  Promise.all(['asphalt_diff', 'asphalt_rough', 'asphalt_nor', 'walk_diff', 'walk_rough', 'walk_nor'].map(n => load('assets/textures/' + n + '.jpg'))).then(([ad, ar, an, wd, wr, wn]) => {
+    const tile = (c, img, n) => { const g = c.getContext('2d'), w = c.width, h = c.height; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) g.drawImage(img, i * w / n, j * h / n, w / n, h / n); return g; };
+    const normalOf = (img, n, like) => { const c = document.createElement('canvas'); c.width = c.height = 1024; tile(c, img, n); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.copy(like.repeat); t.anisotropy = like.anisotropy; return t; };
+    if (ad && ar) {
+      const g = tile(asphaltColor.image, ad, 2), w = asphaltColor.image.width, h = asphaltColor.image.height;
+      g.fillStyle = 'rgba(16,17,20,0.45)'; g.fillRect(0, 0, w, h); // the photo is daylight-bright; the city's asphalt is darker and oilier
+      puddles.forEach(([x, y, r, sy, a]) => blob(g, x * w, y * h, r, sy, a, [[0, 'rgba(8,9,12,.45)'], [.7, 'rgba(8,9,12,.3)'], [1, 'rgba(8,9,12,0)']]));
+      asphaltColor.needsUpdate = true;
+      const gr = tile(asphaltRough.image, ar, 2), rw = asphaltRough.image.width, rh = asphaltRough.image.height;
+      puddles.forEach(([x, y, r, sy, a]) => blob(gr, x * rw, y * rh, r, sy, a, [[0, 'rgba(6,6,6,1)'], [.65, 'rgba(14,14,14,.95)'], [1, 'rgba(14,14,14,0)']]));
+      asphaltRough.needsUpdate = true;
+      if (an) { road.material.normalMap = normalOf(an, 2, asphaltColor); road.material.normalScale.set(0.9, 0.9); road.material.bumpMap = null; road.material.needsUpdate = true; }
+    }
+    if (wd && wr) {
+      const g = tile(tilesColor.image, wd, 1); g.fillStyle = 'rgba(20,20,22,0.3)'; g.fillRect(0, 0, tilesColor.image.width, tilesColor.image.height); tilesColor.needsUpdate = true;
+      tile(tilesRough.image, wr, 1); tilesRough.needsUpdate = true;
+      if (wn) { walkMat.normalMap = normalOf(wn, 1, tilesColor); walkMat.normalScale.set(0.8, 0.8); walkMat.needsUpdate = true; }
+    }
+    upgradeGround.done = true;
+    cb?.();
+  });
+}
+
 function updateWorld13(dt) {
+  for (const c of couriers) if (c.mixer && c.g.visible) c.mixer.update(dt);
   updateRealProps(dt);
   updateRealFoxes(dt);
 }
