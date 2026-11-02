@@ -1,0 +1,9 @@
+{
+  "name": "night-drive",
+  "private": true,
+  "description": "Night Drive : le jeu (fichier unique) et sa fonction de sauvegarde en ligne",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.0"
+  }
+}

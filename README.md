@@ -28,8 +28,14 @@ Ouvrir la page avec `?selftest` lance une série de vérifications automatiques 
 
 - Voitures, bus, camions, arbres, château d’eau et objets de rue : [grab3d.com](https://grab3d.com/models/) — CC0.
 - Mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI « Potsdamer Platz » : [Poly Haven](https://polyhaven.com) — CC0.
-- Passants, livreurs, animaux, bateaux, parc, terrasses, chantier, engins et tableau de bord : [grab3d.com](https://grab3d.com/models/) — CC0.
+- Passants, livreurs, animaux, bateaux, église, parc, terrasses, chantier, engins et tableau de bord : [grab3d.com](https://grab3d.com/models/) — CC0.
+- Pavés de la vieille ville : [Poly Haven](https://polyhaven.com/a/cobblestone_floor_08) — CC0.
+- Moto « Motorcycle » : Poly by Google, via [Poly Pizza](https://poly.pizza/m/dse64pqMKAR) — CC BY 3.0.
 - Pluie en boucle : [OpenGameArt « Rain (loopable) »](https://opengameart.org/content/rain-loopable) — CC0.
 - Circulation, parc, foule, rue mouillée, fontaine et tonnerre : Gregor Quendel, [« Free General Ambience Sounds »](https://opengameart.org/content/free-general-ambience-sounds) — CC BY-SA 4.0.
 - « Car Concept » : Eric Chadwick / Darmstadt Graphics Group, [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) — CC BY 4.0.
 - Renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) — Khronos glTF Sample Assets.
+
+## Sauvegarde en ligne
+
+La fonction `netlify/functions/save.mjs` (route `/api/save`) garde les parties dans Netlify Blobs et rend un code à 6 caractères pour les reprendre sur un autre appareil.
