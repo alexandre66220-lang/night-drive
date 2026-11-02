@@ -31,6 +31,8 @@ Ouvrir la page avec `?selftest` lance une série de vérifications automatiques 
 - Passants, livreurs, animaux, bateaux, église, parc, terrasses, chantier, engins et tableau de bord : [grab3d.com](https://grab3d.com/models/) — CC0.
 - Pavés de la vieille ville : [Poly Haven](https://polyhaven.com/a/cobblestone_floor_08) — CC0.
 - Moto « Motorcycle » : Poly by Google, via [Poly Pizza](https://poly.pizza/m/dse64pqMKAR) — CC BY 3.0.
+- Maisons, train de marchandises, avion cargo, transats et camion de glaces : [grab3d.com](https://grab3d.com/models/) — CC0.
+- Radio Libre (OpenGameArt, CC0) : « Midnight Drive » (Procoder), « Synth Wave » (HitCtrl), « Calm Relax 1 » (snabisch), « Chill lofi inspired » (omfgdude), « lofi hip hop » (TheJosving), « Bossa Nova » (owlishmedia).
 - Pluie en boucle : [OpenGameArt « Rain (loopable) »](https://opengameart.org/content/rain-loopable) — CC0.
 - Circulation, parc, foule, rue mouillée, fontaine et tonnerre : Gregor Quendel, [« Free General Ambience Sounds »](https://opengameart.org/content/free-general-ambience-sounds) — CC BY-SA 4.0.
 - « Car Concept » : Eric Chadwick / Darmstadt Graphics Group, [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) — CC BY 4.0.
@@ -38,4 +40,4 @@ Ouvrir la page avec `?selftest` lance une série de vérifications automatiques 
 
 ## Sauvegarde en ligne
 
-La fonction `netlify/functions/save.mjs` (route `/api/save`) garde les parties dans Netlify Blobs et rend un code à 6 caractères pour les reprendre sur un autre appareil.
+La fonction `netlify/functions/save.mjs` (route `/api/save`) garde les parties dans Netlify Blobs et rend un code à 6 caractères pour les reprendre sur un autre appareil. `scores.mjs` (`/api/scores`) tient le classement en ligne du Grand Prix de la vieille ville, et `ghost.mjs` (`/api/ghost`) garde le meilleur fantôme du Col des Brumes.

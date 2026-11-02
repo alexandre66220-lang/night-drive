@@ -313,7 +313,8 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI <b>Poly Haven</b> (CC0) · passants, livreurs, animaux, bateaux, église, parc, terrasses, chantier et tableau de bord <b>grab3d.com</b> (CC0) · pavés de la vieille ville <b>Poly Haven</b> (CC0) · moto « Motorcycle » de <b>Poly by Google</b> (CC BY 3.0, via Poly Pizza)</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI <b>Poly Haven</b> (CC0) · passants, livreurs, animaux, bateaux, église, parc, terrasses, chantier et tableau de bord <b>grab3d.com</b> (CC0) · pavés de la vieille ville <b>Poly Haven</b> (CC0) · moto « Motorcycle » de <b>Poly by Google</b> (CC BY 3.0, via Poly Pizza) · maisons, train, avion cargo, transats et camion de glaces <b>grab3d.com</b> (CC0)</p>
+    <p>Radio Libre (CC0, OpenGameArt) : « Midnight Drive » Procoder · « Synth Wave » HitCtrl · « Calm Relax 1 » snabisch · « Chill lofi inspired » omfgdude · « lofi hip hop » TheJosving · « Bossa Nova » owlishmedia</p>
     <p>Sons d’ambiance : pluie en boucle (OpenGameArt, CC0) · circulation, parc, foule, rue mouillée, fontaine et tonnerre de <b>Gregor Quendel</b>, « Free General Ambience Sounds » (CC BY-SA 4.0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
@@ -384,6 +385,7 @@ import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
 
 const ASSETS = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/';
 
@@ -977,7 +979,7 @@ function districtOf(i, j) {
   if ((i === 2 && j === 0) || (cellHash(i, j, 5) < 0.07 && (base === 'standard' || base === 'downtown'))) return 'garage';
   return base;
 }
-const DISTRICT_NAMES = { oldtown: 'Vieille ville', plaza: 'Place de l’église', park: 'Parc central', lot: 'Échangeur', neon: 'Quartier néon', port: 'Le port', standard: 'Centre-ville', downtown: "Quartier d'affaires", river: 'Les quais', beach: 'La plage', tunnel: 'Tunnel', garage: 'Parking à étages', mountain: 'Col des Brumes', airport: 'Aéroport', circuit: 'Circuit', fair: 'Fête foraine', site: 'Chantier', firehouse: 'Caserne & SAMU', stadium: 'Stade', chinatown: 'Quartier chinois', gasstation: 'Station-service', cliff: 'Corniche du phare', island: 'Île aux Palmiers' };
+const DISTRICT_NAMES = { suburb: 'Les Pavillons', oldtown: 'Vieille ville', plaza: 'Place de l’église', park: 'Parc central', lot: 'Échangeur', neon: 'Quartier néon', port: 'Le port', standard: 'Centre-ville', downtown: "Quartier d'affaires", river: 'Les quais', beach: 'La plage', tunnel: 'Tunnel', garage: 'Parking à étages', mountain: 'Col des Brumes', airport: 'Aéroport', circuit: 'Circuit', fair: 'Fête foraine', site: 'Chantier', firehouse: 'Caserne & SAMU', stadium: 'Stade', chinatown: 'Quartier chinois', gasstation: 'Station-service', cliff: 'Corniche du phare', island: 'Île aux Palmiers' };
 const isDipCell = (i) => ((i % 4) + 4) % 4 === 1;
 
 function hwyH(x) {
@@ -1363,7 +1365,7 @@ const CIRC = { x0: 6 * S + HALF_ROAD, x1: 9 * S + S - HALF_ROAD, z0: -S + HALF_R
 const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
 const isAirportCell = (i, j) => i >= -2 && i <= 4 && j >= 5 && j <= 6;
 const isCircuitCell = (i, j) => i >= 6 && i <= 9 && j >= -1 && j <= 0;
-const SPECIAL_CELLS = { '-3,-3': 'oldtown', '-2,-3': 'oldtown', '0,-3': 'oldtown', '-1,-3': 'plaza', '0,2': 'park', '2,2': 'fair', '-2,-1': 'site', '3,-1': 'firehouse', '-3,1': 'stadium', '1,-3': 'gasstation', '-3,2': 'chinatown', '-2,2': 'chinatown', '-1,2': 'chinatown' };
+const SPECIAL_CELLS = { '-2,-4': 'suburb', '-1,-4': 'suburb', '0,-4': 'suburb', '-3,-3': 'oldtown', '-2,-3': 'oldtown', '0,-3': 'oldtown', '-1,-3': 'plaza', '0,2': 'park', '2,2': 'fair', '-2,-1': 'site', '3,-1': 'firehouse', '-3,1': 'stadium', '1,-3': 'gasstation', '-3,2': 'chinatown', '-2,2': 'chinatown', '-1,2': 'chinatown' };
 const isCliffCell = (i, j) => i >= -11 && i <= -9 && j >= 3 && j <= 4;
 const AIR_RECTS = [[AIR.x0 + 20, AIR.z1 - 34, AIR.x0 + 150, AIR.z1 - 4], [AIR.x1 - 124, AIR.z1 - 40, AIR.x1 - 72, AIR.z1 - 4], [AIR.x1 - 64, AIR.z1 - 40, AIR.x1 - 12, AIR.z1 - 4]];
 const inClosed = (x, z) => inMountain(x, z) || inRect(AIR, x, z) || inRect(CIRC, x, z) || inCliff(x, z) || inRect(ISL, x, z) || inRect(KZ, x, z);
@@ -1875,6 +1877,7 @@ function buildBlock(i, j) {
   else if (district === 'site') buildSite(i, j, info, group);
   else if (district === 'park') buildPark(i, j, info, group);
   else if (district === 'plaza') buildPlaza(i, j, info, group);
+  else if (district === 'suburb') buildSuburb(i, j, info, group);
   else if (district === 'firehouse') buildFirehouse(i, j, info, group);
   else if (district === 'stadium') buildStadium(i, j, info, group);
   else if (district === 'gasstation') buildGasStation(i, j, info, group);
@@ -2201,12 +2204,12 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false; // refreshed once per frame for the main view only
 
 const skyU = { uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color() }, uStars: { value: 1 },
-  uTime: { value: 0 }, uCloud: { value: 0.35 }, uCloudCol: { value: new THREE.Color() }, uNight: { value: 1 } };
+  uTime: { value: 0 }, uCloud: { value: 0.35 }, uCloudCol: { value: new THREE.Color() }, uNight: { value: 1 }, uMoonOff: { value: new THREE.Vector3(0.06, 0, 0) } };
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 48, 24), new THREE.ShaderMaterial({
   uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }`,
   fragmentShader: `
-    uniform vec3 uTop, uHorizon, uSunDir, uSunColor, uCloudCol; uniform float uStars, uTime, uCloud, uNight; varying vec3 vDir;
+    uniform vec3 uTop, uHorizon, uSunDir, uSunColor, uCloudCol, uMoonOff; uniform float uStars, uTime, uCloud, uNight; varying vec3 vDir;
     float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453); }
     float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -2221,7 +2224,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 48, 24), new THREE.Sha
       // moon with a halo
       vec3 md = normalize(vec3(-0.45, 0.42, -0.78));
       float ms = max(dot(vDir, md), 0.0);
-      float moon = smoothstep(0.99935, 0.99955, ms);
+      float moon = smoothstep(0.99935, 0.99955, ms) * (1.0 - 0.92 * smoothstep(0.99935, 0.99955, max(dot(vDir, normalize(md + uMoonOff)), 0.0))); // the shadowed part of the disc (phase)
       // drifting clouds projected on a dome
       float cov = 0.0;
       if (vDir.y > 0.0) {
@@ -2875,6 +2878,7 @@ function blockRects(i, j) {
   if (d === 'kart') return KART_RECTS;
   if (d === 'lot' || d === 'garage' || d === 'mountain' || d === 'fair' || d === 'site' || d === 'island' || d === 'park') return [];
   if (d === 'plaza') return [[x0 + BLOCK / 2 - 8.5, z0 + 3, x0 + BLOCK / 2 + 8.5, z0 + 43]]; // the church
+  if (d === 'suburb') return suburbLots(i, j).map(L => [L.x - 7, L.z - L.front * 3 - 6, L.x + 7, L.z - L.front * 3 + 6]); // the houses
   if (d === 'circuit') return CIRC_RECTS;
   if (d === 'airport') return AIR_RECTS;
   if (d === 'firehouse') return [[x0 + 4, z0 + 30, x1 - 4, z1 - 4]];
@@ -3416,6 +3420,7 @@ function makeTrafficCar(kind) {
   } else {
     const pc = buildProcCar(kind, new THREE.MeshStandardMaterial({ color: paint, metalness: 0.75, roughness: 0.35 }));
     model = pc.model; lay = pc.layout; wheelList = Object.values(pc.wheels); root.userData.real = pc.real;
+    if (pc.real) driverDummy(model, lay);
   }
   model.traverse(o => { if (o.isMesh) { o.layers.set(GROUND); o.castShadow = true; } });
   root.add(model);
@@ -4087,6 +4092,7 @@ const STATIONS = [
   { name: 'LO-FI RAIN', bpm: 74, style: 'lofi', prog: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]] },
   { name: 'BOULEVARD 90', bpm: 90, style: 'boombap', prog: [[50, 53, 57, 60], [55, 58, 62, 65], [48, 52, 55, 58], [53, 57, 60, 64]] },
   { name: 'TURBO FM', bpm: 172, style: 'dnb', prog: [[57, 60, 64], [55, 59, 62], [53, 57, 60], [52, 55, 59]] },
+  { name: 'RADIO LIBRE', bpm: 100, style: 'synth', prog: [[57, 60, 64]], real: true }, // recorded CC0 tracks, played by updateFreeRadio
 ];
 let station = 0;
 const radio = { bus: null, delay: null, step: 0, next: 0 };
@@ -4109,6 +4115,7 @@ function nextStation() {
 function radioSchedule() {
   if (!audio || station < 0) return;
   const st = STATIONS[station], ctx = audio.ctx, spb = 60 / st.bpm / 4;
+  if (st.real) return;
   if (radio.next < ctx.currentTime) radio.next = ctx.currentTime + 0.05;
   while (radio.next < ctx.currentTime + 0.15) {
     playStep(st, radio.step, radio.next, spb);
@@ -5406,6 +5413,7 @@ function completeMission() {
   let pay = m.kind === 'taxi' ? m.base + Math.round(m.base * 0.6 * m.cond) + timeBonus : Math.round((m.base + timeBonus) * (0.4 + 0.6 * m.cond));
   pay = taxiTip(m, pay);
   if (m.kind === 'delivery' && onFoot) { pay = Math.round(pay * 1.2); toast('📦 LIVRÉ EN MAINS PROPRES · +20 %'); }
+  if (m.pizza && s2Step() === 1) setTimeout(s2Advance, 1500);
   earn(pay);
   toast(`${K.icon}  ${K.done}   +${fmt(pay)} $`);
   summary(`${K.icon} ${K.done}`, [['Gain', `+${fmt(pay)} $`], [m.kind === 'taxi' ? 'Confort du client' : 'État du colis', `${Math.round(m.cond * 100)} %`], ['Temps restant', `${Math.max(0, Math.round(m.time))} s`]]);
@@ -5650,7 +5658,7 @@ const STOLEN_ST = {
   ambulance: { engine: 0.75, top: 0.62, grip: 0.85, steer: 0.8, drift: 1.3, wb: 1.35, armor: 0.45, body: [1.2, 1.7] },
   tow: { engine: 0.7, top: 0.6, grip: 0.9, steer: 0.8, drift: 1.3, wb: 1.4, armor: 0.4, body: [1.2, 1.8] },
 };
-const CITY_WALK = ['neon', 'standard', 'downtown', 'port', 'chinatown', 'oldtown', 'plaza'];
+const CITY_WALK = ['neon', 'standard', 'downtown', 'port', 'chinatown', 'oldtown', 'plaza', 'suburb'];
 function makeWalker() {
   const hw = makeHumanWalker(); if (hw) return hw;
   const model = SkeletonUtils.clone(soldierAsset.scene);
@@ -5817,6 +5825,7 @@ function leaveCar() {
   setHorn(false);
 }
 function boardParked(pk) {
+  if (pk.pv) { spend(35); toast('🅿️ UN PV SUR LE PARE-BRISE · −35 $'); pk.ticket?.parent?.remove(pk.ticket); }
   scene.remove(pk.group); pk.group.remove(pk.desc.model);
   parked.splice(parked.indexOf(pk), 1); syncParkedColliders();
   car.pos.set(pk.x, 0, pk.z); car.y = pk.y; car.yaw = pk.yaw; car.nitro = pk.nitro;
@@ -8022,7 +8031,7 @@ function closePhoto() {
 }
 function photoHint() {
   renderer.domElement.style.filter = PHOTO_FILTERS[photo.filter][1] === 'none' ? '' : PHOTO_FILTERS[photo.filter][1];
-  photoUi.innerHTML = `📷 MODE PHOTO · filtre <b>${PHOTO_FILTERS[photo.filter][0]}</b> · cadre <b>${FRAMES[photo.frame || 0]}</b> · autocollant <b>${STICKERS[photo.sticker || 0]}</b>${onFoot ? ` · pose <b>${POSES[photo.pose || 0][0]}</b> (P)` : ''}<br><span>B : cadre · N : autocollant · Glisser / flèches : tourner · molette / + − : zoom · F : filtre · Entrée : capturer · Échap : quitter</span>
+  photoUi.innerHTML = `📷 MODE PHOTO · filtre <b>${PHOTO_FILTERS[photo.filter][0]}</b> · cadre <b>${FRAMES[photo.frame || 0]}</b> · autocollant <b>${STICKERS[photo.sticker || 0]}</b>${onFoot ? ` · pose <b>${POSES[photo.pose || 0][0]}</b> (P)` : ''} · flou <b>${photo.blur ? 'oui' : 'non'}</b> (V)<br><span>B : cadre · N : autocollant · Glisser / flèches : tourner · molette / + − : zoom · F : filtre · Entrée : capturer · Échap : quitter</span>
     <div><button data-ph="snap">📸 Capturer</button><button data-ph="filter">🎨 Filtre</button>${onFoot ? '<button data-ph="pose">🕺 Pose</button>' : ''}<button data-ph="quit">✕ Quitter</button></div>`;
 }
 function photoKey(e) {
@@ -8031,6 +8040,7 @@ function photoKey(e) {
   else if (e.code === 'KeyF') { photo.filter = (photo.filter + 1) % PHOTO_FILTERS.length; photoHint(); }
   else if (e.code === 'KeyB') { photo.frame = ((photo.frame || 0) + 1) % FRAMES.length; photoHint(); }
   else if (e.code === 'KeyN') { photo.sticker = ((photo.sticker || 0) + 1) % STICKERS.length; photoHint(); }
+  else if (e.code === 'KeyV') { photo.blur = !photo.blur; photoHint(); }
   else if (e.code === 'KeyP') { photo.pose = ((photo.pose || 0) + 1) % POSES.length; applyPose(); photoHint(); }
   else if (e.code === 'Enter' || e.code === 'Space') snapPhoto();
   else if (e.code === 'ArrowLeft') photo.yaw -= 0.12;
@@ -8059,6 +8069,7 @@ function updatePhotoCam() {
   camera.lookAt(camTarget);
 }
 function snapPhoto() {
+  if (ev36.cur) s2.photo = true;
   composer.render();
   const src = renderer.domElement, c = document.createElement('canvas');
   c.width = src.width; c.height = src.height;
@@ -10105,7 +10116,7 @@ async function runSelfTest() {
   await check('Base jump depuis un toit', async () => { const pads = []; for (const b of blocks.values()) for (const r of b.roofs || []) if (r.h > 18) pads.push(r); let pad = null; for (const r of pads.sort((a, b) => b.h - a.h)) { car.pos.set((r.x0 + r.x1) / 2, 0, (r.z0 + r.z1) / 2); car.y = r.h; if (jumpEdge()) { pad = r; break; } } if (!pad) return 'pas de toit avec du vide'; walker.air = false; await wait(200); if (!jumpEdge()) return 'pas sur le toit'; startBaseJump(); let open = false; for (let k = 0; k < 60 && pk.chute; k++) { await wait(200); open ||= pk.chute?.open; } const ok = open && car.y < pad.h - 5; if (pk.chute) { car.y = 0.5; await wait(400); } shopOpen && closeShop(); return ok || `y=${car.y.toFixed(1)} ouvert=${open}`; });
   await check('Salle d’arcade et casse-briques', async () => { car.pos.set(ARCADE_DOOR.x, 0, ARCADE_DOOR.z - 1.2); car.y = 0.16; await wait(200); interiorUse(); await wait(400); const inside = interior?.id === 'arcade'; openArcadeGame('bricks'); await wait(600); const playing = panelMode === 'arcade' && arc.s && !arc.s.over; closeArcade(); exitInterior(); await wait(300); return (inside && playing && !shopOpen) || `dedans=${inside} jeu=${playing}`; });
   await check('Karting indoor : entrer, rouler, sortir', async () => { earn(100, false); car.pos.set(KART_DOOR.x, 0, KART_DOOR.z - 1.2); car.y = 0.16; await wait(200); interiorUse(); await wait(1500); const on = !!vehicle?.kart && inKart(car.pos.x, car.pos.z) && !!kartGroup?.visible; const walls = blockRects(Math.floor(car.pos.x / S), Math.floor(car.pos.z / S)).length; car.pos.set(KART_EXIT.x, 0, KART_EXIT.z); await wait(200); useDoor(); await wait(500); return (on && walls > 4 && onFoot && !inKart(car.pos.x, car.pos.z)) || `kart=${on} murs=${walls} àPied=${onFoot}`; });
-  await check('Laisser passer l’ambulance', async () => { const pk2 = parked.find(p => !p.desc.stolen); if (pk2) boardParked(pk2); if (onFoot) { selectCar(garageState.car); onFoot = false; walker.model.visible = false; } if (police.stars) clearWanted(false); if (ev36.cur) endStreetEvent(); await wait(500); for (let k = 0; k < 100; k++) rec.push({ x: car.pos.x, z: car.pos.z + k * 0.3, y: car.y, yaw: car.yaw, rx: 0, rz: 0, k: 50 }); startYield(); const on = yieldEv.on; car.vx = car.vz = 0; await wait(2200); const passed = yieldEv.phase === 'pass'; endYield(); return (on && passed) || `alerte=${on} passée=${passed} étoiles=${police.stars} course=${race.state} à pied=${onFoot}`; });
+  await check('Laisser passer l’ambulance', async () => { const pk2 = parked.find(p => !p.desc.stolen); if (pk2) boardParked(pk2); if (onFoot) { selectCar(garageState.car); onFoot = false; walker.model.visible = false; } if (police.stars) clearWanted(false); if (ev36.cur) endStreetEvent(); if (race.state === 'offer' || race.state === 'challenge') endRace(); await wait(500); for (let k = 0; k < 100; k++) rec.push({ x: car.pos.x, z: car.pos.z + k * 0.3, y: car.y, yaw: car.yaw, rx: 0, rz: 0, k: 50 }); startYield(); const on = yieldEv.on; car.vx = car.vz = 0; await wait(2200); const passed = yieldEv.phase === 'pass'; endYield(); return (on && passed) || `alerte=${on} passée=${passed} étoiles=${police.stars} course=${race.state} à pied=${onFoot}`; });
   await check('Policiers aux carrefours pendant une panne', async () => { const ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S); nightlife.blackout = { cx: ci, cz: cj, until: (world.tod + 2) % 24, name: 'test' }; updateBlackout(world.tod, -5); await wait(300); const n = blackoutCops.length, key0 = blackoutCops.key, bd = nightlife.bdDay; nightlife.blackout = null; nightlife.bdDay = -5; updateBlackout(world.tod, -5); nightlife.bdDay = bd; await wait(300); return (n === 4 && (!blackoutCops.length || blackoutCops.key !== key0)) || `policiers=${n}`; });
   await check('Livreurs à vélo et trottinette', async () => { world.tod = 22; await wait(800); return couriers.filter(c => c.g.visible).length >= 3 || `visibles=${couriers.filter(c => c.g.visible).length}`; });
   await check('Carambolage : déviation GPS et dépanneuse', async () => { if (accident.state !== 'idle') endAccident(); if (!startAccident()) return 'pas d’accident possible ici'; await wait(300); const det = pile.segs.length > 0 && pile.segs.every(sg => blockedSegs.has(sg)); accident.t = 16; await wait(400); const tow = !!pile.tow?.root.visible; endAccident(); await wait(300); return (det && tow && !pile.segs.length) || `déviation=${det} dépanneuse=${tow}`; });
@@ -10183,6 +10194,7 @@ async function runSelfTest() {
   await check('Mode Ultra', async () => { const q0 = settings.quality; settings.quality = 'ultra'; applyQuality(); await wait(200); const ok = sun.shadow.mapSize.x === 4096 && aoPass.enabled; settings.quality = q0; applyQuality(); return ok || 'ultra'; });
   await check('Ville vivante (animaux, traversées, marché, sons)', async () => { await wait(600); const animals = live.list.length, cross = crossers.list.length, cop = !!jobs.cop, boat = !!realBoat(12), rooms = !!SHOP_ROOMS.laverie && !!SHOP_ROOMS.trattoria; const cityHere = CITY_WALK.includes(districtOf(Math.round(car.pos.x / S), Math.round(car.pos.z / S))); return (animals > 0 && (cross > 0 || !cityHere) && cop && boat && rooms && amb35.loading) || `animaux=${animals} piétons=${cross} agent=${cop} bateau=${boat} salles=${rooms} sons=${amb35.loading}`; });
   await check('Vieille ville, événements, nuages et moto', async () => { const old = districtOf(-3, -3) === 'oldtown' && districtOf(-1, -3) === 'plaza'; const ok = startStreetEvent('film') || !!ev36.cur; const people = ev36.cur?.people.length || 0; endStreetEvent(); await wait(300); const clouds = clouds36.list.length; const moto = !!realMoto(new THREE.MeshStandardMaterial()); return (old && ok && people > 3 && clouds > 10 && moto && typeof cloudSave === 'function') || `vieille=${old} événement=${ok}/${people} nuages=${clouds} moto=${moto}`; });
+  await check('Pavillons, train, avions, radio libre, bowling', async () => { const sub = districtOf(-1, -4) === 'suburb' && suburbLots(-1, -4).length === 4; buildTrainLine(); const tr = train.cars.length >= 6; const pl = !!liveClone('cargo-plane', 1); const radio = STATIONS.some(s2x => s2x.real) && RADIO_TRACKS.length === 6; const bowl = startBarGame('bowling').pins.length === 10; const room = !!SHOP_ROOMS.cinema && !!SHOP_ROOMS.bowling; const moonOk = moonPhase() >= 0 && moonPhase() < 1; return (sub && tr && pl && radio && bowl && room && moonOk && typeof afterPass !== 'undefined') || `pavillons=${sub} train=${tr} avion=${pl} radio=${radio} bowling=${bowl} salles=${room}`; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -10666,7 +10678,7 @@ function updateFame(dt) {
     const near = peds.filter(p => p.root.visible && Math.hypot(p.root.position.x - car.pos.x, p.root.position.z - car.pos.z) < (onFoot ? 7 : 14));
     if (near.length && (onFoot || Math.hypot(car.vx, car.vz) < 6)) {
       const p = mpick(near);
-      say(p.root, mpick(FAN_LINES), 3); p.talk = 3; p.pause = 3;
+      say(p.root, mpick(FAN_LINES), 3); p.talk = 3; p.pause = 3; p.wave = 3;
       flashEl.style.transition = 'none'; flashEl.style.opacity = 0.25;
       requestAnimationFrame(() => { flashEl.style.transition = 'opacity .4s'; flashEl.style.opacity = 0; });
     }
@@ -12337,13 +12349,13 @@ function updateHunt() {
 
 // ---------- hill climb ghosts ----------
 const ghost = { rec: [], t: 0, car: null, on: false };
-function ghostStart() { ghost.rec = []; ghost.t = 0; ghost.on = true; }
-function ghostEnd(rec) { if (rec && ghost.rec.length > 10) { prog.colGhost = ghost.rec; saveProgress(); } ghost.on = false; }
+function ghostStart() { ghost.rec = []; ghost.t = 0; ghost.on = true; ghostFetch(); }
+function ghostEnd(rec) { if (rec && ghost.rec.length > 10) { prog.colGhost = ghost.rec; saveProgress(); ghostUpload(ghost.rec); } ghost.on = false; }
 function updateGhost(dt) {
   const run = colRun.on && ghost.on;
   if (run) { ghost.t += dt; if (!ghost.rec.length || ghost.t - ghost.rec.at(-1)[4] >= 0.1) ghost.rec.push([+car.pos.x.toFixed(1), +car.pos.z.toFixed(1), +car.y.toFixed(1), +car.yaw.toFixed(2), +ghost.t.toFixed(2)]); }
   else ghost.on = false;
-  const G = prog.colGhost;
+  const O = onlineGhost.rec, G = O && (!prog.colGhost?.length || O.at(-1)[4] < prog.colGhost.at(-1)[4]) ? O : prog.colGhost; // the world record when it beats yours
   if (!run || !G?.length || !trafficTemplate) { if (ghost.car) ghost.car.root.visible = false; return; }
   if (!ghost.car) {
     ghost.car = makeTrafficCar('ferrari');
@@ -12453,8 +12465,31 @@ function furnishClub(R) {
   R.obstacles.push({ rect: [-9.5, -4.9, -6.5, -3.1] });
   R.spots.push({ x: -8, z: -2.5, r: 1.1, label: 'F · JOUER AU BILLARD', act: 'play', v: 'pool' }, { x: -10.3, z: 3, r: 1.1, label: 'F · JOUER AUX FLÉCHETTES', act: 'play', v: 'darts' }, { x: 6, z: -3.8, r: 1.1, label: 'F · CHANTER AU KARAOKÉ', act: 'play', v: 'karaoke' });
 }
+function bowlingPins() { const p = []; for (let r = 0; r < 4; r++) for (let c = 0; c <= r; c++) p.push({ x: 240 + (c - r / 2) * 26, y: 70 - r * 20, up: true }); return p; }
+// bowling: the ball swings across the lane, Space to throw; five balls, one point per pin
+function tickBowling(s, g, dt, edge) {
+  const W = 480, H = 360;
+  g.fillStyle = '#c8a070'; g.fillRect(160, 0, 160, H); g.fillStyle = '#1a1a2a'; g.fillRect(140, 0, 20, H); g.fillRect(320, 0, 20, H);
+  for (let k = 0; k < 7; k++) { g.fillStyle = '#8a5a30'; g.beginPath(); g.moveTo(240 + (k - 3) * 18, 250); g.lineTo(234 + (k - 3) * 18, 262); g.lineTo(246 + (k - 3) * 18, 262); g.fill(); }
+  if (!s.rolling) {
+    s.x += s.dir * 150 * dt; if (s.x < 175 || s.x > 305) s.dir *= -1;
+    s.bx = s.x; s.by = 330;
+    if (edge('Space') || edge('Enter') || edge('KeyF')) { s.rolling = true; s.vx = (s.x - 240) * -0.35; }
+  } else {
+    s.by -= 340 * dt; s.bx += s.vx * dt;
+    for (const p of s.pins) if (p.up && Math.hypot(p.x - s.bx, p.y - s.by) < 18) { p.up = false; for (const q of s.pins) if (q.up && Math.hypot(q.x - p.x, q.y - p.y) < 30 && Math.random() < 0.6) q.up = false; }
+    if (s.by < 20 || s.bx < 160 || s.bx > 320) {
+      const n = s.pins.filter(p => !p.up).length; s.score += n === 10 ? 20 : n; s.msg = n === 10 ? 'STRIKE !' : `${n} quille${n > 1 ? 's' : ''}`;
+      s.lives--; s.rolling = false; s.pins = bowlingPins(); if (s.lives <= 0) s.over = true;
+    }
+  }
+  for (const p of s.pins) { g.fillStyle = p.up ? '#f2f2ee' : 'rgba(242,242,238,.15)'; g.beginPath(); g.arc(p.x, p.y, 8, 0, 7); g.fill(); g.fillStyle = '#c8201a'; if (p.up) g.fillRect(p.x - 6, p.y - 2, 12, 3); }
+  g.fillStyle = '#22d3ff'; g.beginPath(); g.arc(s.bx, s.by, 11, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = '700 16px Arial'; g.textAlign = 'left'; g.fillText(`Score ${s.score} · boules ${s.lives}`, 12, 24); g.fillText(s.msg, 12, 46); g.fillText('Espace : lancer', 12, H - 14);
+}
 function startBarGame(id) {
   if (id === 'darts') return { t: 0, score: 0, lives: 5, marks: [], held: true };
+  if (id === 'bowling') return { x: 240, dir: 1, rolling: false, bx: 240, by: 330, vx: 0, pins: bowlingPins(), score: 0, lives: 5, held: {}, msg: '' };
   if (id === 'pool') {
     const balls = [{ x: 140, y: 190, vx: 0, vy: 0, cue: true }];
     let n = 0; for (let r = 0; r < 4; r++) for (let c = 0; c <= r; c++) if (n++ < 7) balls.push({ x: 300 + r * 20, y: 190 + (c - r / 2) * 21, vx: 0, vy: 0 });
@@ -12464,6 +12499,7 @@ function startBarGame(id) {
 }
 function tickBarGame(s, K, g, dt, L, R) {
   const W = 480, H = 360, edge = (code) => { const on = !!K[code], was = s.held[code] ?? s.held === true; if (typeof s.held === 'object') s.held[code] = on; return on && !was; };
+  if (arc.game === 'bowling') { tickBowling(s, g, dt, edge); return; }
   if (arc.game === 'darts') {
     s.t += dt;
     const x = 240 + Math.sin(s.t * 1.7) * 150, y = 180 + Math.sin(s.t * 2.3 + 1) * 110, sp = !!K.Space;
@@ -13813,7 +13849,7 @@ function updateFarTraffic(dt) {
   }
   ftGeo.setDrawRange(0, n); ftGeo.attributes.position.needsUpdate = ftGeo.attributes.color.needsUpdate = true;
 }
-const SKY_SKIP = ['plaza', 'park', 'river', 'beach', 'mountain', 'airport', 'circuit', 'cliff', 'island', 'kart', 'lot', 'fair', 'tunnel'];
+const SKY_SKIP = ['suburb', 'plaza', 'park', 'river', 'beach', 'mountain', 'airport', 'circuit', 'cliff', 'island', 'kart', 'lot', 'fair', 'tunnel'];
 let skyCell = null;
 function rebuildSkyline(ci, cj) {
   const m4 = new THREE.Matrix4(), seeds = skyline.geometry.attributes.aSeed.array;
@@ -14168,11 +14204,13 @@ const SHOP_ROOMS = {
   barbier: { label: 'BARBIER · CHEZ TONY', color: '#22d3ff', x: -22 },
   laverie: { label: 'LAVERIE BULLES', color: '#7fd8ff', x: -10 },
   trattoria: { label: 'TRATTORIA LUNA', color: '#ffb020', x: -64 },
+  cinema: { label: 'CINÉ ÉTOILE', color: '#ff3d9a', x: 14 },
+  bowling: { label: 'BOWLING STRIKE', color: '#30ff90', x: 38 },
 };
 for (const [id, s] of Object.entries(SHOP_ROOMS)) { const d = { id, x: s.x, z: 9.7, label: s.label, color: s.color }; DOORS.push(d); makeDoorFrame(d); }
 function buildShopRoom(id) {
   const W = 14, D = 10, H = 3.4, S0 = SHOP_ROOMS[id];
-  const floors = { superette: [0xd8d8d0, 0x3a3e46], diner: [0x2a2a2a, 0x5a1a22], gym: [0x1a1a1e, 0x2a2c34], barbier: [0xe8e0d0, 0x2a3a4a], laverie: [0xe8eef2, 0x4a6a8a], trattoria: [0x8a5a3a, 0x6a2a1a] }[id];
+  const floors = { superette: [0xd8d8d0, 0x3a3e46], diner: [0x2a2a2a, 0x5a1a22], gym: [0x1a1a1e, 0x2a2c34], barbier: [0xe8e0d0, 0x2a3a4a], laverie: [0xe8eef2, 0x4a6a8a], trattoria: [0x8a5a3a, 0x6a2a1a], cinema: [0x1a0a10, 0x3a0a1a], bowling: [0xc8a070, 0x1a1a2a] }[id];
   const g = roomShell(W, D, H, floors[0], floors[1], 0.08), R = { id, w: W, d: D, h: H, g, obstacles: [], spots: [] };
   const M = (c, r = 0.6, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const sign = neonSign(S0.label, S0.color, 6, 1); sign.position.set(0, 2.7, -D / 2 + 0.05); g.add(sign);
@@ -14208,6 +14246,21 @@ function buildShopRoom(id) {
     g.add(box(2.6, 0.45, 0.6, M(0x2a3a4a, 0.6), -4, 0.23, 2.8)); R.obstacles.push({ rect: [-5.3, 2.5, -2.7, 3.1] });
     R.spots.push({ x: -2, z: -2.6, r: 1.6, label: 'F · LANCER UNE MACHINE (6 $ · une demi-heure passe)', act: 'shop', v: 'wash' });
     R.light = [0xe8f4ff, 0xffffff];
+  } else if (id === 'cinema') {
+    // a screen playing an old film, rows of red seats
+    const film = canvasTex(256, 128, (c, w, h) => { c.fillStyle = '#111'; c.fillRect(0, 0, w, h); }, true);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.4), new THREE.MeshBasicMaterial({ map: film, color: new THREE.Color().setScalar(1.6) })); scr.position.set(0, 1.9, -D / 2 + 0.08); g.add(scr);
+    R.update = (dt, t) => { const c = film.image.getContext('2d'); c.fillStyle = `hsl(${(t * 20) % 360},40%,${18 + 10 * Math.sin(t * 1.3)}%)`; c.fillRect(0, 0, 256, 128); c.fillStyle = '#fff'; c.font = '700 18px Arial'; c.textAlign = 'center'; c.fillText(Math.floor(t / 6) % 2 ? '« La nuit nous appartient »' : 'NIGHT DRIVE · LE FILM', 128, 68 + Math.sin(t) * 6); film.needsUpdate = true; };
+    for (let r = 0; r < 3; r++) for (let k = -4; k <= 4; k++) g.add(box(0.7, 0.7, 0.6, M(0x8a1020, 0.7), k * 1.2, 0.35, -0.5 + r * 1.6));
+    R.obstacles.push({ rect: [-5.2, -0.9, 5.2, 3.1] });
+    R.spots.push({ x: -5.8, z: 2.5, r: 1.4, label: 'F · VOIR LE FILM (8 $ · deux heures passent)', act: 'shop', v: 'film' });
+    R.light = [0x402030, 0x201030];
+  } else if (id === 'bowling') {
+    // two lanes, pins at the end, a ball return
+    for (const x of [-2.2, 2.2]) { g.add(box(1.6, 0.05, D - 2.2, M(0xd8b080, 0.3), x, 0.03, -0.4)); for (let r = 0; r < 4; r++) for (let c = 0; c <= r; c++) g.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.38, 8), M(0xf2f2ee, 0.3)), {}).translateX(x + (c - r / 2) * 0.24).translateY(0.22).translateZ(-D / 2 + 1 + r * 0.22)); }
+    R.obstacles.push({ rect: [-3.2, -D / 2, 3.2, 2.4] });
+    R.spots.push({ x: 0, z: 3.4, r: 1.6, label: 'F · JOUER AU BOWLING', act: 'play', v: 'bowling' }, { x: 5.2, z: 2.6, r: 1.2, label: 'F · LOUER DES CHAUSSURES (3 $)', act: 'shop', v: 'shoes' });
+    R.light = [0xc8fff0, 0xff9ad8];
   } else if (id === 'trattoria') {
     // red checked tables, a pizza oven glowing at the back, a counter
     const cloth = new THREE.MeshStandardMaterial({ map: canvasTex(64, 64, (c) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { c.fillStyle = (x + y) % 2 ? '#c8201a' : '#f2f2ee'; c.fillRect(x * 8, y * 8, 8, 8); } }, true), roughness: 0.8 });
@@ -14238,7 +14291,9 @@ function shopAct(v) {
   else if (v === 'burger') { if (!spend(12)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 1) % 24; toast('🍔 UN BON BURGER · UNE HEURE PASSE'); }
   else if (v === 'wash') { if (!spend(6)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 0.5) % 24; toast('🫧 LINGE PROPRE · UNE DEMI-HEURE PASSE   −6 $'); }
   else if (v === 'pizza') { if (!spend(14)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 1) % 24; car.nitro = 1; if (lastParked) lastParked.nitro = 1; toast('🍕 PIZZA AU FEU DE BOIS · NITRO PLEINE   −14 $'); }
-  else if (v === 'pizzajob') { exitInterior(); setTimeout(() => { if (onFoot && walker) { useDoor?.(); } startMission('delivery'); if (missions.active) { missions.active.base += 60; toast('🍕 LIVRAISON POUR LA TRATTORIA LUNA · PIZZAS CHAUDES !'); } }, 400); }
+  else if (v === 'shoes') { if (!spend(3)) return toast('PAS ASSEZ D’ARGENT'); toast('👟 CHAUSSURES DE BOWLING LOUÉES · TAILLE 43   −3 $'); }
+  else if (v === 'film') { if (!spend(8)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 2) % 24; karmaAdd(1); toast('🎬 BELLE SÉANCE · DEUX HEURES PASSENT   −8 $'); }
+  else if (v === 'pizzajob') { exitInterior(); setTimeout(() => { if (onFoot && walker) { useDoor?.(); } startMission('delivery'); if (missions.active) { missions.active.base += 60; missions.active.pizza = true; toast('🍕 LIVRAISON POUR LA TRATTORIA LUNA · PIZZAS CHAUDES !'); } }, 400); }
   else if (v === 'coffee') { if (!spend(3)) return toast('PAS ASSEZ D’ARGENT'); toast('☕ UN CAFÉ BIEN SERRÉ'); }
   else if (v === 'train') { if ((prog.fit || 0) >= 10) return toast('💪 TU ES AU MAXIMUM DE TA FORME'); if (!spend(20)) return toast('PAS ASSEZ D’ARGENT'); fade(); prog.fit = (prog.fit || 0) + 1; saveProgress(); toast(`💪 ENDURANCE ${prog.fit}/10 · TU COURS PLUS VITE`); }
   else if (v === 'cut') { if (!spend(35)) return toast('PAS ASSEZ D’ARGENT'); prog.cut = ((prog.cut ?? -1) + 1) % CUTS.length; addFame(1); karmaAdd(1); saveProgress(); toast(`💈 NOUVELLE COUPE : ${CUTS[prog.cut].toUpperCase()} · LES FANS ADORENT`); }
@@ -14311,6 +14366,8 @@ function buildBeach(i) {
   for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2; person(night, fireX + Math.cos(a) * 2, fireZ + Math.sin(a) * 2, Math.atan2(-Math.cos(a), -Math.sin(a)), 'idle'); }
   person(day, x0 + 52, RZ0 + 0.6, Math.PI, 'idle');
   figs.filter(f => boards.some(b => b.position.x === f.x)).forEach(f => { f.surf = true; f.h.root.position.y = WATER_Y + 0.12; });
+  for (let k = 0; k < 4; k++) { const l = liveClone('sun-lounger', 1); if (l) { scene.remove(l); l.position.set(x0 + 10 + k * 3.2, sand(RZ0 + 14), RZ0 + 14); l.rotation.y = Math.PI; day.add(l); } }
+  const ict = liveClone('ice-cream-truck', 1); if (ict) { scene.remove(ict); ict.position.set(x0 + 44, sand(RZ0 + 2), RZ0 + 2.5); ict.rotation.y = Math.PI / 2; day.add(ict); }
   g.add(day, night); scene.add(g);
   return { g, day, night, flames, figs, boards };
 }
@@ -14873,6 +14930,7 @@ function updateStreetLife(dt) {
 const GRADES = { filmique: 'Filmique', noir: 'Néo-noir', vintage: 'Vintage', neon: 'Néon saturé' };
 const bokehPass = new BokehPass(scene, camera, { focus: 8, aperture: 0.0006, maxblur: 0.008 });
 bokehPass.enabled = false; composer.insertPass(bokehPass, 2);
+const afterPass = new AfterimagePass(0); afterPass.enabled = false; composer.insertPass(afterPass, 2); // motion blur at speed
 function updateDof() {
   const on = panelMode === 'photo' || panelMode === 'cine';
   bokehPass.enabled = on && settings.quality !== 'basse';
@@ -14944,7 +15002,8 @@ const REAL_PROP_FILES = ['fire_hydrant', 'metal_trash_can', 'trashbag', 'painted
   'shrub_03', 'shrub_02', 'fern_02', 'wooden_crate_01', 'Barrel_01', 'plastic_crate_01', 'concrete_road_barrier', 'covered_car', 'water_manhole_cover', 'rock_07'];
 const REAL_BIG_FILES = ['cement-mixer', 'dump-truck', 'crane-truck', 'city-bus', 'double-decker-bus', 'minibus', 'delivery-truck', 'garbage-truck', 'mail-truck', 'fire-truck', 'ambulance', 'tow-truck', 'food-truck', 'street-sweeper'];
 const REAL_TREE_FILES = ['oak-tree', 'maple-tree', 'birch-tree', 'olive-tree', 'autumn-tree', 'cypress-tree', 'palm-tree', 'bush'];
-const REAL_OBJ_FILES = ['church', 'moto_sport', 'yacht', 'motorboat', 'speedboat', 'sailboat', 'fishing-boat', 'fountain', 'park-bench', 'lantern-post', 'hot-dog-cart', 'market-stall', 'round-table', 'dining-chair', 'patio-umbrella', 'traffic-cone', 'metal-fence',
+const REAL_OBJ_FILES = ['suburban-family-house', 'cottage-house', 'bungalow', 'modern-house', 'ranch-house', 'duplex-house', 'colonial-house', 'picket-fence', 'swimming-pool', 'riding-mower', 'sun-lounger', 'ice-cream-truck', 'luggage-cart',
+  'diesel-locomotive', 'boxcar', 'tank-car', 'freight-container-car', 'hopper-car', 'flatcar', 'railway-crossing-signal', 'cargo-plane', 'church', 'moto_sport', 'yacht', 'motorboat', 'speedboat', 'sailboat', 'fishing-boat', 'fountain', 'park-bench', 'lantern-post', 'hot-dog-cart', 'market-stall', 'round-table', 'dining-chair', 'patio-umbrella', 'traffic-cone', 'metal-fence',
   'scaffolding', 'excavator', 'bulldozer', 'dog', 'puppy', 'cat', 'black-cat', 'kitten', 'bird', 'car-dashboard', 'dumpster', 'phone-booth', 'mailbox', 'newspaper-stand', 'parking-meter', 'vending-machine', 'traffic-barrel', 'wooden-pallet', 'cardboard-box-stack',
   'trash-bag-pile', 'atm', 'advertising-column', 'bike-rack', 'bicycle', 'moped', 'e-scooter', 'sandbags', 'street-planter'];
 // big vehicles: the models each procedural type can become
@@ -15226,7 +15285,8 @@ const PROP_DEFS31 = {
   vending: ['vending-machine', true, 50], tbarrel: ['traffic-barrel', true, 120], pallet: ['wooden-pallet', false, 120], cartons: ['cardboard-box-stack', true, 120],
   bagpile: ['trash-bag-pile', true, 90], atm: ['atm', true, 40], column: ['advertising-column', true, 50], bikerack: ['bike-rack', true, 60], bike: ['bicycle', true, 90],
   moped: ['moped', true, 70], scooter: ['e-scooter', true, 90], sandbags: ['sandbags', true, 80], splanter: ['street-planter', true, 90], wtower: ['water-tower', true, 60],
-  church: ['church', true, 2], treeA: ['imp_0', true, 260], treeB: ['imp_1', true, 260], treeC: ['imp_2', true, 180], fountain: ['fountain', true, 4], pbench: ['park-bench', true, 30], lantern: ['lantern-post', true, 30],
+  house0: ['suburban-family-house', true, 12], house1: ['cottage-house', true, 12], house2: ['bungalow', true, 12], house3: ['modern-house', true, 12], house4: ['ranch-house', true, 12], house5: ['duplex-house', true, 12], house6: ['colonial-house', true, 12],
+  picket: ['picket-fence', false, 200], pool: ['swimming-pool', false, 12], church: ['church', true, 2], treeA: ['imp_0', true, 260], treeB: ['imp_1', true, 260], treeC: ['imp_2', true, 180], fountain: ['fountain', true, 4], pbench: ['park-bench', true, 30], lantern: ['lantern-post', true, 30],
   hotdog: ['hot-dog-cart', true, 12], stall: ['market-stall', true, 40], ctable: ['round-table', true, 120], chair: ['dining-chair', true, 260], umbrella: ['patio-umbrella', true, 120],
   cone: ['traffic-cone', false, 120], fence: ['metal-fence', true, 140], scaffold: ['scaffolding', true, 40], excav: ['excavator', true, 4], dozer: ['bulldozer', true, 4],
   dog: ['dog', true, 40], puppy: ['puppy', true, 40], cat: ['cat', true, 40], bcat: ['black-cat', true, 40], kitten: ['kitten', true, 30], bird: ['bird', false, 160],
@@ -16159,6 +16219,373 @@ function updateWorld16(dt, t) {
   if (vehicle?.model?.userData.riderMixer) vehicle.model.userData.riderMixer.update(dt);
 }
 
+// ---------- a residential quarter: houses with gardens, fences, pools, a neighbour mowing ----------
+const HOUSE_MODELS = ['suburban-family-house', 'cottage-house', 'bungalow', 'modern-house', 'ranch-house', 'duplex-house', 'colonial-house'];
+// four lots per block, a house at the back of each (hoisted: built with the block)
+function suburbLots(i, j) {
+  const x0 = i * S + HALF_ROAD, z0 = j * S + HALF_ROAD, out = [];
+  for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) out.push({ x: x0 + 15 + a * 30, z: z0 + 15 + b * 30, front: b ? 1 : -1, k: Math.floor(wearHash(i * 3 + a, j * 5 + b, 61) * 7) });
+  return out;
+}
+function buildSuburb(i, j, info, group) {
+  const x0 = i * S + HALF_ROAD, z0 = j * S + HALF_ROAD;
+  flushMerged(group, info, [new THREE.BoxGeometry(BLOCK, 0.16, BLOCK).translate(x0 + BLOCK / 2, 0.08, z0 + BLOCK / 2)], grassMat, false);
+  const paths = [];
+  for (const L of suburbLots(i, j)) {
+    const fz = L.front * 13; // the side of the lot that faces the street
+    realProp(info, 'house' + L.k, L.x, L.z - L.front * 3, L.front > 0 ? 0 : Math.PI, 0.82, 0.16);
+    paths.push(new THREE.BoxGeometry(2.2, 0.02, 9).translate(L.x, 0.17, L.z + L.front * 9.5));
+    for (let k = -6; k <= 6; k++) if (Math.abs(k) > 1) realProp(info, 'picket', L.x + k * 2.1, L.z + fz + L.front * 1.6, 0, 1, 0.16);
+    realProp(info, 'mailbox', L.x + 2.4, L.z + fz + L.front * 1.4, L.front > 0 ? 0 : Math.PI);
+    if (wearHash(i + L.k, j, 62) < 0.45) realProp(info, 'pool', L.x - 9, L.z + L.front * 6, 0, 0.8, 0.0);
+    realProp(info, wearHash(i, j + L.k, 63) < 0.5 ? 'treeA' : 'treeB', L.x + 10, L.z + L.front * 8, L.k, 0.75, 0.16);
+    realProp(info, 'bush', L.x - 3, L.z + L.front * 10, L.k, 1, 0.16);
+    (info.houses ||= []).push([L.x - 8, L.z - L.front * 3 - 6, L.x + 8, L.z - L.front * 3 + 6]);
+  }
+  flushMerged(group, info, paths, walkMat, false);
+  info.suburb = { x0, z0 };
+}
+// the neighbour on his ride-on mower, the one with the hose
+const yard = { mower: null, hose: null, cell: '' };
+function updateYard(dt, t) {
+  const b = [...blocks.values()].filter(q => q.suburb).sort((a, c) => Math.hypot(a.cx - car.pos.x, a.cz - car.pos.z) - Math.hypot(c.cx - car.pos.x, c.cz - car.pos.z))[0];
+  const day = world.tod > 8 && world.tod < 19 && world.rain < 0.3;
+  if (!b || !day || interior || Math.hypot(b.cx - car.pos.x, b.cz - car.pos.z) > 140) { if (yard.mower) yard.mower.g.visible = false; if (yard.hose) yard.hose.h.root.visible = false; return; }
+  if (!yard.mower && realAssets().props['riding-mower'] && HUMANS.list.length) {
+    const g = new THREE.Group(), m = liveClone('riding-mower', 1.2); scene.remove(m); g.add(m);
+    const h = humanClone(0x2a6a3a, ['elderly-man', 'man', 'farmer']); if (h) { h.root.position.set(0, 0.25, 0.1); g.add(h.root); const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0]; const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(sitClip(H)).play(); g.mx = mx; }
+    scene.add(g); yard.mower = { g, u: 0 };
+  }
+  if (!yard.hose && HUMANS.list.length) {
+    const h = humanClone(0x2a3550, ['elderly-woman', 'woman', 'man-base-character']); if (h) { scene.add(h.root); const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(h.clips.idle).play(); yard.hose = { h, mx }; }
+  }
+  const key = b.i + ',' + b.j;
+  if (yard.cell !== key) { yard.cell = key; yard.lots = suburbLots(b.i, b.j); }
+  const L = yard.lots[0], L2 = yard.lots[3];
+  if (yard.mower) {
+    const M = yard.mower; M.g.visible = true; M.u += dt * 0.08;
+    const lane = Math.floor(M.u) % 4, f = M.u % 1, dir = lane % 2 ? -1 : 1;
+    M.g.position.set(L.x - 10 + (dir > 0 ? f : 1 - f) * 20, 0.16, L.z + L.front * (5 + lane * 1.4)); M.g.rotation.y = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    M.g.mx?.update(dt);
+    if (Math.random() < dt * 8) emitFx('dust', M.g.position.x, 0.3, M.g.position.z, 0, 0.4, 0);
+  }
+  if (yard.hose) {
+    const H = yard.hose; H.h.root.visible = true; H.h.root.position.set(L2.x + 6, 0.16, L2.z + L2.front * 6); H.h.root.rotation.y = Math.PI / 2; H.mx.update(dt);
+    aimBone(H.h.root, '(mixamorig)?RightArm$', new THREE.Vector3(1, -0.15, 0), 0.9);
+    if (Math.random() < dt * 25) { const a = 0.2 * Math.sin(t * 1.5); emitFx('splash', H.h.root.position.x + 0.7, 1.1, H.h.root.position.z, 3.5, 1.2, a * 4); }
+  }
+}
+
+// ---------- a freight train along the airport, out of one tunnel and into the other ----------
+const TRAIN_Z = AIR.z0 + 4, TRAIN_X0 = AIR.x0 + 6, TRAIN_X1 = AIR.x1 - 6;
+const train = { g: null, cars: [], x: 0, v: 0, wait: 10, dir: 1, built: false };
+function buildTrainLine() {
+  if (train.built || !realAssets().props['diesel-locomotive']) return;
+  train.built = true;
+  const g = new THREE.Group(), len = TRAIN_X1 - TRAIN_X0, M = (c, r = 0.8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
+  g.add(box(len, 0.2, 3.4, M(0x4a443c), (TRAIN_X0 + TRAIN_X1) / 2, 0.1, TRAIN_Z)); // ballast
+  for (const s of [-0.72, 0.72]) g.add(box(len, 0.12, 0.08, M(0x8a8e96, 0.3, 0.9), (TRAIN_X0 + TRAIN_X1) / 2, 0.26, TRAIN_Z + s));
+  const sleepers = []; for (let x = TRAIN_X0; x < TRAIN_X1; x += 0.8) sleepers.push(new THREE.BoxGeometry(0.25, 0.08, 2.4).translate(x, 0.2, TRAIN_Z));
+  g.add(new THREE.Mesh(mergeGeometries(sleepers), M(0x3a2a1c)));
+  for (const x of [TRAIN_X0, TRAIN_X1]) { g.add(box(4, 7, 8, M(0x5a5d63), x, 3.5, TRAIN_Z)); g.add(box(3.2, 5, 4.4, M(0x07080a), x + (x === TRAIN_X0 ? 0.5 : -0.5), 2.5, TRAIN_Z)); } // tunnel portals
+  scene.add(g); train.g = g;
+  // the consist: a locomotive and eight wagons
+  const kinds = ['diesel-locomotive', 'boxcar', 'tank-car', 'freight-container-car', 'hopper-car', 'flatcar', 'boxcar', 'tank-car', 'freight-container-car'];
+  for (const k of kinds) {
+    const o = liveClone(k, 1); if (!o) continue;
+    o.inner.rotation.y = Math.PI / 2; o.traverse(m => { if (m.isMesh) m.castShadow = true; });
+    const box2 = new THREE.Box3().setFromObject(o); train.cars.push({ o, len: (box2.max.x - box2.min.x) || 15 });
+  }
+  // a crossing signal at each end, its lights blink while the train runs
+  train.signals = [];
+  for (const x of [TRAIN_X0 + 14, TRAIN_X1 - 14]) { const s = liveClone('railway-crossing-signal', 1); if (s) { s.position.set(x, 0.1, TRAIN_Z - 3); train.signals.push(s); } }
+  train.lamp = new THREE.MeshBasicMaterial({ color: hdr(0xff2a20, 6) });
+  train.blinks = train.signals.map(s => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), train.lamp); m.position.set(s.position.x, 3.0, s.position.z + 0.3); scene.add(m); return m; });
+}
+function updateTrain(dt, t) {
+  buildTrainLine(); if (!train.g) return;
+  const near = Math.abs(car.pos.z - TRAIN_Z) < 300 && car.pos.x > TRAIN_X0 - 300 && car.pos.x < TRAIN_X1 + 300 && !interior;
+  train.g.visible = near;
+  const total = train.cars.reduce((a, c) => a + c.len + 1, 0);
+  if (train.wait > 0) { train.wait -= dt; for (const c of train.cars) c.o.visible = false; train.blinks.forEach(b => { b.visible = false; }); return; }
+  train.v = Math.min(14, train.v + dt * 1.5); train.x += train.v * dt * train.dir;
+  let x = train.x;
+  for (const c of train.cars) {
+    const cx = x - train.dir * c.len / 2; x -= train.dir * (c.len + 1);
+    const inside = cx > TRAIN_X0 + 2 && cx < TRAIN_X1 - 2; c.o.visible = near && inside;
+    c.o.position.set(cx, 0.3, TRAIN_Z); c.o.rotation.y = train.dir > 0 ? 0 : Math.PI;
+  }
+  train.blinks.forEach((b, k) => { b.visible = near && Math.floor(t * 2.5 + k) % 2 === 0; });
+  if (near && audio && Math.random() < dt * 0.05) hornTone?.();
+  const tail = train.x - train.dir * total;
+  if ((train.dir > 0 && tail > TRAIN_X1) || (train.dir < 0 && tail < TRAIN_X0)) { train.dir *= -1; train.x = train.dir > 0 ? TRAIN_X0 : TRAIN_X1; train.v = 4; train.wait = 40 + Math.random() * 60; }
+}
+
+// ---------- the airport: cargo planes37 landing and taking off on the runway ----------
+const planes37 = { p: null, phase: 'wait', t: 20, x: 0, y: 0, v: 0 };
+function updatePlanes37(dt) {
+  const near = Math.abs(car.pos.z - AIR_Z) < 700 && !interior;
+  if (!planes37.p) { const o = liveClone('cargo-plane', 1); if (!o) return; o.inner.rotation.y = Math.PI / 2; o.traverse(m => { if (m.isMesh) m.castShadow = true; }); planes37.p = o; }
+  const P = planes37.p, X0 = AIR.x0 + 60, X1 = AIR.x1 - 40;
+  P.visible = near && planes37.phase !== 'wait';
+  if (planes37.phase === 'wait') { if ((planes37.t -= dt) <= 0) { planes37.phase = Math.random() < 0.5 ? 'land' : 'takeoff'; if (planes37.phase === 'land') { planes37.x = X1 + 900; planes37.y = 90; planes37.v = 70; } else { planes37.x = X0; planes37.y = 0; planes37.v = 0; } } return; }
+  if (planes37.phase === 'land') {
+    planes37.x -= planes37.v * dt;
+    const touch = X1 - 60;
+    if (planes37.x > touch) planes37.y = Math.max(0, (planes37.x - touch) / 900 * 90);
+    else { planes37.y = 0; planes37.v = Math.max(8, planes37.v - dt * 9); }
+    if (planes37.x < X0 + 80) { planes37.phase = 'wait'; planes37.t = 50 + Math.random() * 40; }
+    P.rotation.set(0, Math.PI, 0); P.rotation.z = 0; P.inner.rotation.x = planes37.y > 2 ? 0.05 : 0;
+  } else {
+    planes37.v = Math.min(85, planes37.v + dt * 7); planes37.x += planes37.v * dt;
+    if (planes37.v > 62) planes37.y += (planes37.v - 55) * dt * 0.35;
+    if (planes37.y > 160) { planes37.phase = 'wait'; planes37.t = 50 + Math.random() * 40; }
+    P.rotation.set(0, 0, 0); P.inner.rotation.x = planes37.y > 1 ? -0.12 : 0;
+  }
+  P.position.set(planes37.x, 0.2 + planes37.y, AIR_Z);
+}
+
+// ---------- drivers you can see through the glass ----------
+function driverDummy(model, lay) {
+  // shared geometry and a handful of shared materials: thirty drivers cost almost nothing
+  const D = driverDummy.c ||= { torso: new THREE.BoxGeometry(0.42, 0.55, 0.26), head: new THREE.SphereGeometry(0.11, 10, 8),
+    skins: [0xf2d0b8, 0xd8a888, 0xa87050, 0x6a4430].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })), cloths: [0x1a1c22, 0x2a3550, 0x6a1a1a, 0x4a4a52, 0xe8e0c8].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 })) };
+  const g = new THREE.Group();
+  const torso = new THREE.Mesh(D.torso, mpick(D.cloths)); torso.position.y = 0.28;
+  const head = new THREE.Mesh(D.head, mpick(D.skins)); head.position.y = 0.68;
+  g.add(torso, head); g.position.set(-(lay.W || 1.8) * 0.2, (lay.hood || 1) - 0.42, (lay.len || 4.4) * 0.04);
+  g.traverse(o => { if (o.isMesh) o.layers.set(GROUND); });
+  model.add(g); return g;
+}
+
+// ---------- traffic tempers: blocked drivers honk and shout ----------
+const honk = { t: 0 };
+function updateHonks(dt) {
+  if (onFoot || !audio || interior) return;
+  const sp = Math.hypot(car.vx, car.vz);
+  for (const c of traffic) {
+    if (!c.active || c.police) continue;
+    const dx = car.pos.x - c.x, dz = car.pos.z - c.z, d = Math.hypot(dx, dz);
+    const [fx, fz] = DIRS[c.dir] || [0, 0], ahead = (dx * fx + dz * fz) / (d || 1);
+    if (d < 12 && ahead > 0.7 && c.v < 1 && sp < 1) c.stuck = (c.stuck || 0) + dt; else c.stuck = 0;
+    if (c.stuck > 3 && (honk.t -= dt) <= 0) {
+      honk.t = 2.5; c.stuck = 1.5;
+      const ctx = audio.ctx, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = mpick([392, 440, 330]); g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.linearRampToValueAtTime(0.05 * (muted ? 0 : 1), ctx.currentTime + 0.02); g.gain.setTargetAtTime(0, ctx.currentTime + 0.45, 0.05); o.connect(g).connect(audio.master); o.start(); o.stop(ctx.currentTime + 0.8);
+      say(c.root, mpick(['Avance !', 'Tu dors ou quoi ?', 'C’est vert là !', 'Allez, bouge !', 'Hé ! On n’a pas toute la nuit !']), 2.5);
+    }
+  }
+}
+
+// ---------- your parked car gets a ticket if you leave it too long ----------
+function updateParking(dt) {
+  for (const pk of parked) {
+    if (pk.desc?.stolen || pk.pv) continue;
+    const d = districtOf(Math.floor(pk.x / S), Math.floor(pk.z / S));
+    if (!CITY_WALK.includes(d)) continue;
+    pk.parkT = (pk.parkT || 0) + dt;
+    if (pk.parkT > 150) {
+      pk.pv = true;
+      const ticket = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.18), new THREE.MeshStandardMaterial({ color: 0xffd23a, emissive: 0x332a00, roughness: 0.8, side: THREE.DoubleSide }));
+      const L = pk.desc.layout || {}; ticket.position.set(-0.3, (L.hood || 1) + 0.06, -(L.len || 4) * 0.18); ticket.rotation.x = -1.1;
+      pk.desc.model.add(ticket); pk.ticket = ticket;
+      if (Math.hypot(pk.x - car.pos.x, pk.z - car.pos.z) < 60) toast('🅿️ UNE CONTRACTUELLE MET UN PV SUR TA VOITURE');
+    }
+  }
+}
+
+// ---------- breakdowns: a puncture, an overheating engine, a flat battery ----------
+const brk = { t: 240, kind: null };
+function updateBreakdowns(dt) {
+  if (onFoot || !vehicle?.own || race.state !== 'idle' || missions.active || police.stars || interior) return;
+  const sp = Math.hypot(car.vx, car.vz);
+  if (sp > 8) brk.t -= dt * (1 + car.damage * 2);
+  if (brk.t > 0) return;
+  brk.t = 300 + Math.random() * 300;
+  const k = mpick(['crevaison', 'surchauffe', 'batterie']);
+  if (k === 'crevaison') { police.flat = 1; applyUpgrades(); toast('🛞 CREVAISON ! LA VOITURE TIRE SUR LE CÔTÉ · R POUR RÉPARER'); }
+  else if (k === 'surchauffe') { setDamage(Math.min(1, car.damage + 0.3)); toast('🌡️ LE MOTEUR SURCHAUFFE · R POUR RÉPARER'); }
+  else { headSides.forEach(h => { h.glow.visible = h.beam.visible = false; h.spot.intensity = 0; }); car.vx *= 0.3; car.vz *= 0.3; toast('🔋 BATTERIE À PLAT · LES PHARES S’ÉTEIGNENT · R POUR RÉPARER'); brk.dark = true; }
+}
+
+// ---------- the rear-view mirror in the cockpit view ----------
+const mirror = { rt: null, cam: null, mesh: null };
+function updateMirror() {
+  const on = typeof cockpitOn === 'function' && cockpitOn() && cockpit.g && settings.quality !== 'basse';
+  if (!on) { if (mirror.mesh) mirror.mesh.visible = false; return; }
+  if (!mirror.rt) {
+    mirror.rt = new THREE.WebGLRenderTarget(320, 96); mirror.cam = new THREE.PerspectiveCamera(55, 320 / 96, 0.3, 400);
+    mirror.mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.1), new THREE.MeshBasicMaterial({ map: mirror.rt.texture, toneMapped: false }));
+    mirror.mesh.layers.set(GROUND);
+  }
+  if (mirror.mesh.parent !== cockpit.g) { const e = cockpitLocal(); mirror.mesh.position.set(0, e.y + 0.24, e.z - 0.42); mirror.mesh.scale.x = -1; cockpit.g.add(mirror.mesh); }
+  mirror.mesh.visible = true;
+  // looking backwards from the roof line, mirrored
+  carTilt.updateWorldMatrix(true, false);
+  const e = cockpitLocal(), p = new THREE.Vector3(0, e.y + 0.2, e.z + 0.6).applyMatrix4(carTilt.matrixWorld), back = new THREE.Vector3(0, e.y + 0.05, e.z + 20).applyMatrix4(carTilt.matrixWorld);
+  mirror.cam.position.copy(p); mirror.cam.lookAt(back); mirror.cam.layers.mask = camera.layers.mask;
+  mirror.mesh.visible = false;
+  const prev = renderer.getRenderTarget(); renderer.setRenderTarget(mirror.rt); renderer.render(scene, mirror.cam); renderer.setRenderTarget(prev);
+  mirror.mesh.visible = true;
+}
+
+// ---------- papers swirling behind fast cars, moon phases ----------
+const papers = { list: [] };
+function updatePapers(dt) {
+  if (!papers.list.length) for (let k = 0; k < 14; k++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.3), new THREE.MeshStandardMaterial({ color: mpick([0xf2f2ee, 0xe8e0c8, 0xdcdcdc]), side: THREE.DoubleSide, roughness: 0.9 })); m.visible = false; scene.add(m); papers.list.push({ m, life: 0, v: new THREE.Vector3(), w: new THREE.Vector3() }); }
+  const sp = Math.hypot(car.vx, car.vz), city = CITY_WALK.includes(districtOf(Math.floor(car.pos.x / S), Math.floor(car.pos.z / S)));
+  if (!onFoot && sp > 18 && city && world.rain < 0.4 && Math.random() < dt * 3) {
+    const p = papers.list.find(q => q.life <= 0);
+    if (p) { const f = fwdOf(car.yaw); p.life = 2.5; p.m.position.set(car.pos.x - f.x * 3 + (Math.random() - 0.5) * 2, 0.2, car.pos.z - f.z * 3 + (Math.random() - 0.5) * 2); p.v.set(car.vx * 0.15 + (Math.random() - 0.5) * 3, 2 + Math.random() * 2, car.vz * 0.15 + (Math.random() - 0.5) * 3); p.w.set(Math.random() * 8, Math.random() * 8, Math.random() * 8); p.m.visible = true; }
+  }
+  for (const p of papers.list) {
+    if (p.life <= 0) continue;
+    p.life -= dt; p.v.y -= 2.2 * dt; p.v.multiplyScalar(1 - dt * 0.8);
+    p.m.position.addScaledVector(p.v, dt); if (p.m.position.y < 0.18) { p.m.position.y = 0.18; p.v.set(0, 0, 0); }
+    p.m.rotation.x += p.w.x * dt; p.m.rotation.y += p.w.y * dt; p.m.rotation.z += p.w.z * dt;
+    if (p.life <= 0) p.m.visible = false;
+  }
+}
+// the moon's age from the real date: 0 new, 0.5 full
+function moonPhase() { const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5; return ((days / 29.530588) % 1 + 1) % 1; }
+function updateMoon() {
+  const p = moonPhase(), lit = 0.5 - 0.5 * Math.cos(p * Math.PI * 2);
+  if (skyU.uMoonOff) { const off = Math.sin(p * Math.PI) * 0.06 + 0.001; skyU.uMoonOff.value.set(p < 0.5 ? off : -off, 0, 0); }
+  moon.intensity = 0.25 * (0.25 + 0.75 * lit);
+}
+
+// ---------- the free radio: real tracks (CC0, OpenGameArt) on a sixth station ----------
+const RADIO_TRACKS = [['midnight-drive', 'Midnight Drive', 'Procoder'], ['synth-wave', 'Synth Wave', 'HitCtrl'], ['synthwave-421k', 'Calm Relax 1', 'snabisch'], ['chill-lofi', 'Chill lofi inspired', 'omfgdude'], ['lofi-hip-hop', 'lofi hip hop', 'TheJosving'], ['bossa', 'Bossa Nova (8 bits)', 'owlishmedia']];
+const rlib = { el: null, k: Math.floor(Math.random() * 6), node: null, on: false };
+function updateFreeRadio() {
+  const want = !!audio && STATIONS[station]?.real && started && !muted;
+  if (want && !rlib.el) {
+    rlib.el = new Audio(); rlib.el.crossOrigin = 'anonymous'; rlib.el.preload = 'auto';
+    try { rlib.node = audio.ctx.createMediaElementSource(rlib.el); const g = audio.ctx.createGain(); g.gain.value = 0.9; rlib.node.connect(g).connect(audio.musicOut); } catch { /* plays directly */ }
+    rlib.el.addEventListener('ended', () => { rlib.k = (rlib.k + 1) % RADIO_TRACKS.length; playFreeTrack(); });
+  }
+  if (want && !rlib.on) { rlib.on = true; playFreeTrack(); }
+  if (!want && rlib.on) { rlib.on = false; rlib.el?.pause(); }
+}
+function playFreeTrack() { const [f, n, a] = RADIO_TRACKS[rlib.k]; rlib.el.src = 'assets/music/' + f + '.mp3'; rlib.el.play().catch(() => {}); toast(`📻 RADIO LIBRE · ${n} — ${a}`); }
+
+// ---------- passers-by coming out of and going into the shops ----------
+const doorsLife = { list: [], t: 20 }; // not in the first seconds of a game
+function updateDoorsLife(dt) {
+  if (!HUMANS.list.length || interior || world.tod < 7 || world.tod > 23) { for (const p of doorsLife.list) p.h.root.visible = false; return; }
+  if ((doorsLife.t -= dt) <= 0 && doorsLife.list.filter(p => p.h.root.visible).length < 4) {
+    doorsLife.t = 4 + Math.random() * 6;
+    const d = DOORS.filter(o => o.z === 9.7 && Math.hypot(o.x - car.pos.x, o.z - car.pos.z) < 70);
+    if (d.length) {
+      const door = mpick(d), out = Math.random() < 0.5;
+      let p = doorsLife.list.find(q => !q.h.root.visible);
+      if (!p) { const h = humanClone(); if (!h) return; const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(h.clips.walk).play(); scene.add(h.root); p = { h, mx }; doorsLife.list.push(p); }
+      const side = Math.random() < 0.5 ? -1 : 1;
+      p.a = out ? { x: door.x, z: door.z - 0.2 } : { x: door.x + side * 8, z: door.z - 2.6 }; p.b = out ? { x: door.x + side * 8, z: door.z - 2.6 } : { x: door.x, z: door.z - 0.2 };
+      p.u = 0; p.h.root.visible = true;
+    }
+  }
+  for (const p of doorsLife.list) {
+    if (!p.h.root.visible) continue;
+    p.u += dt * 1.3 / 8.4;
+    const x = p.a.x + (p.b.x - p.a.x) * p.u, z = p.a.z + (p.b.z - p.a.z) * p.u;
+    p.h.root.position.set(x, 0.16, z); p.h.root.rotation.y = Math.atan2(p.b.x - p.a.x, p.b.z - p.a.z); p.mx.update(dt);
+    if (p.u >= 1) p.h.root.visible = false;
+  }
+}
+
+// ---------- motion blur at high speed, and in the photo mode ----------
+function updateMotionBlur() {
+  if (!afterPass) return;
+  const sp = onFoot ? 0 : Math.hypot(car.vx, car.vz), photoBlur = panelMode === 'photo' && photo.blur;
+  const k = photoBlur ? 0.88 : settings.quality === 'basse' ? 0 : clamp((sp - 38) / 30, 0, 1) * 0.72;
+  afterPass.enabled = k > 0.02; afterPass.uniforms.damp.value = k;
+}
+
+// ---------- the second season: "Les nuits de la vieille ville" ----------
+const S2 = [
+  { who: 'Lucia, la patronne de la Trattoria Luna', txt: 'Toi qui conduis la nuit… Viens me voir sur la place de l’église, il se passe des choses étranges dans la vieille ville.', ok: () => [...blocks.values()].some(b => b.plaza && Math.hypot(b.plaza.x - car.pos.x, b.plaza.z - car.pos.z) < 25) && (world.tod > 19 || world.tod < 5), goal: 'Va sur la place de l’église, la nuit' },
+  { who: 'Lucia', txt: 'Mes livreurs ont peur de sortir. Fais une livraison de pizzas pour moi, s’il te plaît.', ev: 'pizza', goal: 'Fais une livraison de pizzas pour la Trattoria Luna' },
+  { who: 'Père Antoine', txt: 'On raconte qu’un tournage clandestin attire des gens louches. Prends une photo pendant un événement de rue, on verra qui est là.', ok: () => s2.photo, goal: 'Prends une photo pendant un événement de rue' },
+  { who: 'Lucia', txt: 'Grâce à toi la vieille ville respire. Garde cette vieille moto de mon oncle, elle est à toi.', done: true, goal: 'Saison 2 terminée' },
+];
+const s2 = { photo: false, t: 6 };
+function s2Step() { return prog.s2 || 0; }
+function s2Call(k) { const st = S2[k]; const el = document.getElementById('call'); if (!el) return; el.querySelector('.who').textContent = st.who; el.querySelector('p').textContent = st.txt; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 7000); toast(`📜 SAISON 2 · ${st.goal}`); }
+function s2Advance() {
+  prog.s2 = s2Step() + 1; saveProgress(); chime(true); earn(400);
+  if (prog.s2 < S2.length) s2Call(prog.s2);
+  if (S2[prog.s2]?.done) { prog.s2 = S2.length; if (!garageState.owned.includes('moto')) { garageState.owned.push('moto'); garageState.cars.moto = defaultLook('moto'); saveGarage(); } summary('📜 Les nuits de la vieille ville', [['Récompense', '+1 200 $ et une moto'], ['Saison', '2 terminée']]); }
+}
+function updateSeason2(dt) {
+  if (!started || interior) return;
+  const k = s2Step(); if (k >= S2.length - 1) return;
+  if (k === 0 && !s2.called && districtOf(Math.floor(car.pos.x / S), Math.floor(car.pos.z / S)) === 'oldtown') { s2.called = true; s2Call(0); }
+  if ((s2.t -= dt) > 0) return; s2.t = 1;
+  const st = S2[k];
+  if (st.ok && (k > 0 || s2.called) && st.ok()) s2Advance();
+}
+
+// ---------- a time trial round the old town, with an online leaderboard ----------
+const GP = { on: false, k: 0, t0: 0, beacon: null, pts: null };
+function gpPoints() { return [[-3, -3], [-2, -3], [-1, -3], [0, -3], [1, -3], [1, -2], [0, -2], [-3, -2], [-3, -3]].map(([i, j]) => ({ x: i * S, z: j * S })); }
+function updateGrandPrix() {
+  if (!started || interior || onFoot || race.state !== 'idle' || missions.active) return;
+  GP.pts ||= gpPoints();
+  const P = GP.pts;
+  if (!GP.on) {
+    if (!GP.start) { GP.start = makeBeacon(0x22d3ff, P[0].x, P[0].z, 2.4); }
+    GP.start.visible = Math.hypot(P[0].x - car.pos.x, P[0].z - car.pos.z) < 220;
+    if (Math.hypot(P[0].x - car.pos.x, P[0].z - car.pos.z) < 7 && Math.hypot(car.vx, car.vz) > 4) { GP.on = true; GP.k = 1; GP.t0 = performance.now(); toast('🏁 GRAND PRIX DE LA VIEILLE VILLE · GO !'); GP.beacon = makeBeacon(0xffd23a, P[1].x, P[1].z, 2.4); }
+    return;
+  }
+  const T = P[GP.k];
+  if (Math.hypot(T.x - car.pos.x, T.z - car.pos.z) < 9) {
+    scene.remove(GP.beacon); GP.k++; chime(false);
+    if (GP.k >= P.length) {
+      const time = (performance.now() - GP.t0) / 1000; GP.on = false;
+      const best = prog.gpBest; if (!best || time < best) { prog.gpBest = time; saveProgress(); }
+      toast(`🏁 GRAND PRIX TERMINÉ · ${time.toFixed(2)} s${!best || time < best ? ' · RECORD !' : ''}`); earn(Math.round(Math.max(100, 900 - time * 6)));
+      gpSubmit(time);
+    } else GP.beacon = makeBeacon(0xffd23a, P[GP.k].x, P[GP.k].z, 2.4);
+  } else if ((performance.now() - GP.t0) / 1000 > 240) { scene.remove(GP.beacon); GP.on = false; toast('🏁 GRAND PRIX ABANDONNÉ'); }
+}
+async function gpSubmit(time) {
+  try {
+    const name = prog.pilotName || (prog.pilotName = 'Pilote ' + Math.floor(1000 + Math.random() * 9000)); saveProgress();
+    const r = await fetch('/api/scores', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ track: 'vieille-ville', name, time }) });
+    const top = await r.json();
+    if (Array.isArray(top)) summary('🏁 Classement en ligne · Vieille ville', top.slice(0, 5).map((e, k) => [`${k + 1}. ${e.name}`, `${e.time.toFixed(2)} s`]));
+  } catch { /* offline: the local record stays */ }
+}
+
+// ---------- online ghosts on the mountain pass: the world's best run races you ----------
+const onlineGhost = { rec: null, asked: false };
+async function ghostUpload(rec) {
+  try { const time = rec.at(-1)[4]; await fetch('/api/ghost', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ track: 'col', time, name: prog.pilotName || 'Anonyme', rec }) }); } catch { /* offline */ }
+}
+async function ghostFetch() {
+  if (onlineGhost.asked) return; onlineGhost.asked = true;
+  try { const r = await fetch('/api/ghost?track=col'); if (r.ok) { const j = await r.json(); if (j.rec?.length) onlineGhost.rec = j.rec; } } catch { /* offline */ }
+}
+
+function updateWorld17(dt, t) {
+  updateYard(dt, t);
+  updateTrain(dt, t);
+  updatePlanes37(dt);
+  updateHonks(dt);
+  updateParking(dt);
+  updateBreakdowns(dt);
+  updateMirror();
+  updatePapers(dt);
+  updateMoon();
+  updateFreeRadio();
+  updateDoorsLife(dt);
+  updateMotionBlur();
+  updateSeason2(dt);
+  updateGrandPrix();
+  for (const p of peds) if (p.wave > 0) { p.wave -= dt; aimBone(p.root, '(mixamorig)?RightArm$', new THREE.Vector3(0.25, 1, 0.1), 1); }
+}
+
 // ---------- sparks and dents ----------
 // Collisions report a contact point and the obstacle's outward normal (the strongest one of the
 // frame is kept). Hard hits throw a burst of sparks and dent the body mesh around the contact;
@@ -16613,6 +17040,7 @@ renderer.setAnimationLoop(() => {
   updateWorld14(dt);
   updateWorld15(dt, t);
   updateWorld16(dt, t);
+  updateWorld17(dt, t);
   updateBubbles(dt);
   updateFleeing(dt);
   if ((progTimer -= dt) <= 0) { progTimer = 1; checkCounters(); flushProgress(); }
