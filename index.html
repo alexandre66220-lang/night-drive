@@ -313,7 +313,8 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI <b>Poly Haven</b> (CC0) · passants, livreurs, animaux, parc, terrasses, chantier et tableau de bord <b>grab3d.com</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI <b>Poly Haven</b> (CC0) · passants, livreurs, animaux, bateaux, parc, terrasses, chantier et tableau de bord <b>grab3d.com</b> (CC0)</p>
+    <p>Sons d’ambiance : pluie en boucle (OpenGameArt, CC0) · circulation, parc, foule, rue mouillée, fontaine et tonnerre de <b>Gregor Quendel</b>, « Free General Ambience Sounds » (CC BY-SA 4.0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
     <button data-m="back">← Retour</button></div>
@@ -2277,7 +2278,7 @@ function updateWorld(dt, carPos) {
   if (world.weatherTimer <= 0) setWeather(pickWeather());
   const W = WEATHERS[world.weatherKey];
   world.rain += (W.rain - world.rain) * damp(0.2, dt);
-  world.fog += (W.fog - world.fog) * damp(0.2, dt);
+  world.fog += (Math.max(W.fog, morningFog()) - world.fog) * damp(0.2, dt);
   world.snow += ((W.snow || 0) - world.snow) * damp(0.25, dt);
   // snow settles while it falls and melts slowly afterwards (rain melts it faster)
   world.snowCover = world.snow > 0.3 ? Math.min(1, world.snowCover + dt * 0.035 * world.snow) : Math.max(0, world.snowCover - dt * (0.004 + world.rain * 0.03) * world.timeScale);
@@ -2335,7 +2336,7 @@ function updateWorld(dt, carPos) {
   // storms: lightning flashes the sky and the ambient light, thunder follows with a delay
   if (world.weatherKey === 'orage' && Math.random() < dt * 0.12) {
     world.flash = 1;
-    setTimeout(thunder, mrange(400, 2500));
+    setTimeout(() => { thunder(); playThunderSample(); }, mrange(400, 2500));
   }
   world.flash = Math.max(0, (world.flash || 0) - dt * 3.5);
   if (world.flash > 0) {
@@ -3697,10 +3698,10 @@ function updatePeds(dt) {
     else if (p.pause > 0) p.pause -= dt;
     else if (Math.random() < dt * 0.04) p.pause = mrange(2, 6);
     p.w += ((p.pause > 0 && p.scare <= 0 ? 0 : 1) - p.w) * damp(4, dt);
-    p.rw += ((p.scare > 0 ? 1 : 0) - p.rw) * damp(6, dt);
+    p.rw += ((p.scare > 0 || (world.rain > 0.5 && !p.umb?.visible && !interior) ? 1 : 0) - p.rw) * damp(6, dt);
     p.walk.setEffectiveWeight(p.w * (1 - p.rw)); p.idle.setEffectiveWeight(1 - p.w); p.run.setEffectiveWeight(p.w * p.rw);
-    p.walk.timeScale = p.speed / 1.25;
-    const perim = 4 * p.L, pace = p.speed + (3.8 - p.speed) * p.rw;
+    const rush = pedRush(); p.walk.timeScale = p.speed * rush / 1.25;
+    const perim = 4 * p.L, pace = p.speed * rush + (3.8 - p.speed * rush) * p.rw;
     p.s = ((p.s + p.sign * pace * p.w * dt) % perim + perim) % perim;
     const [x, z, dx, dz] = pedPos(p);
     const face = p.talk > 0 ? Math.atan2(car.pos.x - x, car.pos.z - z) : Math.atan2(dx * p.sign, dz * p.sign); // turn to whoever talks to them
@@ -4349,7 +4350,7 @@ function updateInput() {
 
 // ---------- loading ----------
 const manager = new THREE.LoadingManager();
-manager.onProgress = (_, done, total) => { statusEl.textContent = `Chargement de la ville… ${Math.round(done / total * 100)}%`; };
+manager.onProgress = (_, done, total) => { statusEl.textContent = `Chargement de la ville… ${Math.round(done / total * 100)}%`; loadingBar(done, total); };
 const draco = new DRACOLoader(manager).setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/');
 const gltfLoader = new GLTFLoader(manager).setDRACOLoader(draco);
 const texLoader = new THREE.TextureLoader(manager);
@@ -4391,10 +4392,12 @@ gltfLoader.load(ASSETS + 'models/gltf/ferrari.glb', (gltf) => {
   });
 });
 
+realAssets().pending++; // the clips of every townsperson are baked from it before the game starts
 gltfLoader.load(ASSETS + 'models/gltf/Xbot.glb', (gltf) => {
   pedAsset = gltf;
   if (HUMANS.pending <= 0) initPeds(); // otherwise the people's models finish loading first
-});
+  realAssets().one?.();
+}, undefined, () => realAssets().one?.());
 
 gltfLoader.load(ASSETS + 'models/gltf/Soldier.glb', (gltf) => {
   const man = gltf.scene;
@@ -4517,7 +4520,8 @@ function fitToWindow() {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
-  reflRT.setSize(Math.ceil(w * DPR * QF() / 2), Math.ceil(h * DPR * QF() / 2));
+  const rd = settings.quality === 'ultra' ? 1 : 2; // full-resolution reflections in ultra
+  reflRT.setSize(Math.ceil(w * DPR * QF() / rd), Math.ceil(h * DPR * QF() / rd));
 }
 addEventListener('resize', fitToWindow);
 
@@ -5395,6 +5399,7 @@ function completeMission() {
   const m = missions.active, K = MISSION_KINDS[m.kind], timeBonus = Math.round(Math.max(0, m.time) * 4);
   let pay = m.kind === 'taxi' ? m.base + Math.round(m.base * 0.6 * m.cond) + timeBonus : Math.round((m.base + timeBonus) * (0.4 + 0.6 * m.cond));
   pay = taxiTip(m, pay);
+  if (m.kind === 'delivery' && onFoot) { pay = Math.round(pay * 1.2); toast('📦 LIVRÉ EN MAINS PROPRES · +20 %'); }
   earn(pay);
   toast(`${K.icon}  ${K.done}   +${fmt(pay)} $`);
   summary(`${K.icon} ${K.done}`, [['Gain', `+${fmt(pay)} $`], [m.kind === 'taxi' ? 'Confort du client' : 'État du colis', `${Math.round(m.cond * 100)} %`], ['Temps restant', `${Math.max(0, Math.round(m.time))} s`]]);
@@ -10161,8 +10166,9 @@ async function runSelfTest() {
   await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + AVATARS.length - 1) % AVATARS.length; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
   await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(400); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(500); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
   await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['treeA', 'treeB', 'treeC'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); const people = HUMANS.list.filter(L => L.kind === 'g3d').length, riders = couriers.filter(c => c.real).length; if (people < 12 || !upgradeGround.done) return `personnages=${people} sol=${!!upgradeGround.done}`; return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
-  await check('Parc, terrasses, animaux et arbres photo', async () => { await wait(300); const P2 = propPools(), n = (t) => (P2[t] || []).reduce((a, q) => a + q.n, 0); const park = [...blocks.values()].some(b => b.park); const env = !!realAssets().hdr, fac = !!facadeMats[0].map.userData.redraw; return (n('treeA') + n('treeB') + n('treeC') > 10 && n('ctable') > 0 && n('cat') + n('bcat') + n('kitten') + n('bird') > 0 && env && fac && (park || n('fountain') >= 0)) || `arbres=${n('treeA') + n('treeB') + n('treeC')} terrasses=${n('ctable')} animaux=${n('cat') + n('bird')} ciel=${env} parc=${park}`; });
+  await check('Parc, terrasses, animaux et arbres photo', async () => { await wait(300); const P2 = propPools(), n = (t) => (P2[t] || []).reduce((a, q) => a + q.n, 0); const park = [...blocks.values()].some(b => b.park); const env = !!realAssets().hdr, fac = !!facadeMats[0].map.userData.redraw; return (n('treeA') + n('treeB') + n('treeC') > 10 && n('ctable') > 0 && live.list.length > 0 && env && fac && (park || n('fountain') >= 0)) || `arbres=${n('treeA') + n('treeB') + n('treeC')} terrasses=${n('ctable')} animaux=${live.list.length} ciel=${env} parc=${park}`; });
   await check('Mode Ultra', async () => { const q0 = settings.quality; settings.quality = 'ultra'; applyQuality(); await wait(200); const ok = sun.shadow.mapSize.x === 4096 && aoPass.enabled; settings.quality = q0; applyQuality(); return ok || 'ultra'; });
+  await check('Ville vivante (animaux, traversées, marché, sons)', async () => { await wait(600); const animals = live.list.length, cross = crossers.list.length, cop = !!jobs.cop, boat = !!realBoat(12), rooms = !!SHOP_ROOMS.laverie && !!SHOP_ROOMS.trattoria; return (animals > 0 && cross > 0 && cop && boat && rooms && amb35.loading) || `animaux=${animals} piétons=${cross} agent=${cop} bateau=${boat} salles=${rooms} sons=${amb35.loading}`; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -14146,11 +14152,13 @@ const SHOP_ROOMS = {
   diner: { label: 'MOONLIGHT DINER', color: '#ff3d9a', x: -46 },
   gym: { label: 'IRON GYM', color: '#ff8a2a', x: -34 },
   barbier: { label: 'BARBIER · CHEZ TONY', color: '#22d3ff', x: -22 },
+  laverie: { label: 'LAVERIE BULLES', color: '#7fd8ff', x: -10 },
+  trattoria: { label: 'TRATTORIA LUNA', color: '#ffb020', x: -64 },
 };
 for (const [id, s] of Object.entries(SHOP_ROOMS)) { const d = { id, x: s.x, z: 9.7, label: s.label, color: s.color }; DOORS.push(d); makeDoorFrame(d); }
 function buildShopRoom(id) {
   const W = 14, D = 10, H = 3.4, S0 = SHOP_ROOMS[id];
-  const floors = { superette: [0xd8d8d0, 0x3a3e46], diner: [0x2a2a2a, 0x5a1a22], gym: [0x1a1a1e, 0x2a2c34], barbier: [0xe8e0d0, 0x2a3a4a] }[id];
+  const floors = { superette: [0xd8d8d0, 0x3a3e46], diner: [0x2a2a2a, 0x5a1a22], gym: [0x1a1a1e, 0x2a2c34], barbier: [0xe8e0d0, 0x2a3a4a], laverie: [0xe8eef2, 0x4a6a8a], trattoria: [0x8a5a3a, 0x6a2a1a] }[id];
   const g = roomShell(W, D, H, floors[0], floors[1], 0.08), R = { id, w: W, d: D, h: H, g, obstacles: [], spots: [] };
   const M = (c, r = 0.6, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const sign = neonSign(S0.label, S0.color, 6, 1); sign.position.set(0, 2.7, -D / 2 + 0.05); g.add(sign);
@@ -14175,6 +14183,26 @@ function buildShopRoom(id) {
     R.obstacles.push({ rect: [1.8, -3, 4.2, -2.2] });
     R.spots.push({ x: -2.7, z: -0.8, r: 1.6, label: 'F · S’ENTRAÎNER (20 $ · tu cours plus vite)', act: 'shop', v: 'train' });
     R.light = [0xffd0a0, 0xffffff];
+  } else if (id === 'laverie') {
+    // a row of washing machines with round doors, a folding table, a bench to wait on
+    for (let k = 0; k < 6; k++) {
+      const x = -5 + k * 2; g.add(box(0.9, 1.0, 0.8, M(0xf2f4f6, 0.3, 0.2), x, 0.5, -D / 2 + 0.6));
+      const door = new THREE.Mesh(new THREE.CircleGeometry(0.28, 24), new THREE.MeshStandardMaterial({ color: 0x223040, roughness: 0.1, metalness: 0.5, emissive: 0x2a6aff, emissiveIntensity: k % 2 ? 0.25 : 0 })); door.position.set(x, 0.55, -D / 2 + 1.01); g.add(door);
+    }
+    R.obstacles.push({ rect: [-5.6, -D / 2, 6.6, -D / 2 + 1.1] });
+    g.add(box(3, 0.9, 0.9, M(0xc8ccd4, 0.4, 0.4), 3, 0.45, 1.5)); R.obstacles.push({ rect: [1.4, 1, 4.6, 2] });
+    g.add(box(2.6, 0.45, 0.6, M(0x2a3a4a, 0.6), -4, 0.23, 2.8)); R.obstacles.push({ rect: [-5.3, 2.5, -2.7, 3.1] });
+    R.spots.push({ x: -2, z: -2.6, r: 1.6, label: 'F · LANCER UNE MACHINE (6 $ · une demi-heure passe)', act: 'shop', v: 'wash' });
+    R.light = [0xe8f4ff, 0xffffff];
+  } else if (id === 'trattoria') {
+    // red checked tables, a pizza oven glowing at the back, a counter
+    const cloth = new THREE.MeshStandardMaterial({ map: canvasTex(64, 64, (c) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { c.fillStyle = (x + y) % 2 ? '#c8201a' : '#f2f2ee'; c.fillRect(x * 8, y * 8, 8, 8); } }, true), roughness: 0.8 });
+    for (const [x, z] of [[-4, 0], [0, 0], [4, 0], [-4, 3], [4, 3]]) { g.add(box(1.2, 0.76, 1.2, cloth, x, 0.38, z)); R.obstacles.push({ rect: [x - 0.7, z - 0.7, x + 0.7, z + 0.7] }); }
+    const oven = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(0x8a4a2a, 0.9)); oven.position.set(-4.5, 0.9, -D / 2 + 1.3); g.add(oven);
+    const fire = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({ color: hdr(0xff6a10, 3) })); fire.position.set(-4.5, 1.25, -D / 2 + 2.35); g.add(fire);
+    g.add(box(4, 1, 0.8, M(0x5a3a22, 0.6), 2.5, 0.5, -D / 2 + 1.2)); R.obstacles.push({ rect: [-5.8, -D / 2, 4.6, -D / 2 + 2.4] });
+    R.spots.push({ x: 2.5, z: -D / 2 + 2.4, r: 1.5, label: 'F · UNE PIZZA (14 $ · une heure passe, nitro pleine)', act: 'shop', v: 'pizza' });
+    R.light = [0xffc890, 0xffa860];
   } else {
     for (const x of [-3.5, 0, 3.5]) {
       const ch = box(0.8, 0.9, 0.8, M(0xc8322a, 0.35), x, 0.45, -3); g.add(ch);
@@ -14194,6 +14222,8 @@ function shopAct(v) {
   if (v === 'soda') { if (!spend(4)) return toast('PAS ASSEZ D’ARGENT'); if (lastParked) lastParked.nitro = 1; car.nitro = 1; toast('⚡ BOISSON ÉNERGISANTE · NITRO PLEINE   −4 $'); }
   else if (v === 'paper') { if (!spend(2)) return toast('PAS ASSEZ D’ARGENT'); prog.paper ||= buildPaper(); openPanel('paper'); }
   else if (v === 'burger') { if (!spend(12)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 1) % 24; toast('🍔 UN BON BURGER · UNE HEURE PASSE'); }
+  else if (v === 'wash') { if (!spend(6)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 0.5) % 24; toast('🫧 LINGE PROPRE · UNE DEMI-HEURE PASSE   −6 $'); }
+  else if (v === 'pizza') { if (!spend(14)) return toast('PAS ASSEZ D’ARGENT'); fade(); world.tod = (world.tod + 1) % 24; car.nitro = 1; if (lastParked) lastParked.nitro = 1; toast('🍕 PIZZA AU FEU DE BOIS · NITRO PLEINE   −14 $'); }
   else if (v === 'coffee') { if (!spend(3)) return toast('PAS ASSEZ D’ARGENT'); toast('☕ UN CAFÉ BIEN SERRÉ'); }
   else if (v === 'train') { if ((prog.fit || 0) >= 10) return toast('💪 TU ES AU MAXIMUM DE TA FORME'); if (!spend(20)) return toast('PAS ASSEZ D’ARGENT'); fade(); prog.fit = (prog.fit || 0) + 1; saveProgress(); toast(`💪 ENDURANCE ${prog.fit}/10 · TU COURS PLUS VITE`); }
   else if (v === 'cut') { if (!spend(35)) return toast('PAS ASSEZ D’ARGENT'); prog.cut = ((prog.cut ?? -1) + 1) % CUTS.length; addFame(1); karmaAdd(1); saveProgress(); toast(`💈 NOUVELLE COUPE : ${CUTS[prog.cut].toUpperCase()} · LES FANS ADORENT`); }
@@ -14286,6 +14316,7 @@ function updateBeaches(dt, t) {
 // ---------- the marina (yachts at their pontoons) and the shipyard (a hull under scaffolding) ----------
 const MARINA = (() => { for (const i of [3, 4, -4, -5, 5, 6, -6, -7, 7, 8]) if (districtOf(i, RIVER_J) === 'river' && districtOf(i + 1, RIVER_J) === 'river' && !isBeachCell(i) && !isBeachCell(i + 1)) return { i }; return { i: 3 }; })();
 function makeYacht(len, col) {
+  const rb = realBoat(len); if (rb) return rb;
   const g = new THREE.Group(), w = len * 0.28, shp = new THREE.Shape();
   shp.moveTo(-w / 2, -len / 2); shp.lineTo(w / 2, -len / 2); shp.lineTo(w / 2, len * 0.2); shp.quadraticCurveTo(w / 2, len * 0.42, 0, len / 2); shp.quadraticCurveTo(-w / 2, len * 0.42, -w / 2, len * 0.2); shp.lineTo(-w / 2, -len / 2);
   const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(shp, { depth: 1.6, bevelEnabled: false }).rotateX(-Math.PI / 2).translate(0, -0.6, 0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.25, metalness: 0.2 }));
@@ -14772,7 +14803,7 @@ function decoratePed(p) {
   const hand = (side) => { let b = null; p.root.traverse(o => { if (o.isBone && /(mixamorig)?(Right|Left)Hand$/.test(o.name) && o.name.includes(side)) b = b || o; }); return b; };
   const r = Math.random();
   if (r > 0.88 && realAssets().props.dog) { // walking a dog on a lead
-    const dog = realAssets().props[Math.random() < 0.5 ? 'dog' : 'puppy'].clone(true); dog.position.set(0.55, 0, 0.45); dog.traverse(o => { if (o.isMesh) o.castShadow = true; }); p.root.add(dog);
+    const dog = realAssets().props[Math.random() < 0.5 ? 'dog' : 'puppy'].clone(true); dog.position.set(0.55, 0, 0.45); dog.traverse(o => { if (o.isMesh) o.castShadow = true; }); p.root.add(dog); p.dog = dog;
     const lead = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.22, 0.85, 0.12), new THREE.Vector3(0.55, 0.38, 0.62)]), new THREE.LineBasicMaterial({ color: 0x1a1a1a })); p.root.add(lead);
     return;
   }
@@ -14898,7 +14929,7 @@ const REAL_PROP_FILES = ['fire_hydrant', 'metal_trash_can', 'trashbag', 'painted
   'shrub_03', 'shrub_02', 'fern_02', 'wooden_crate_01', 'Barrel_01', 'plastic_crate_01', 'concrete_road_barrier', 'covered_car', 'water_manhole_cover', 'rock_07'];
 const REAL_BIG_FILES = ['cement-mixer', 'dump-truck', 'crane-truck', 'city-bus', 'double-decker-bus', 'minibus', 'delivery-truck', 'garbage-truck', 'mail-truck', 'fire-truck', 'ambulance', 'tow-truck', 'food-truck', 'street-sweeper'];
 const REAL_TREE_FILES = ['oak-tree', 'maple-tree', 'birch-tree', 'olive-tree', 'autumn-tree', 'cypress-tree', 'palm-tree', 'bush'];
-const REAL_OBJ_FILES = ['fountain', 'park-bench', 'lantern-post', 'hot-dog-cart', 'market-stall', 'round-table', 'dining-chair', 'patio-umbrella', 'traffic-cone', 'metal-fence',
+const REAL_OBJ_FILES = ['yacht', 'motorboat', 'speedboat', 'sailboat', 'fishing-boat', 'fountain', 'park-bench', 'lantern-post', 'hot-dog-cart', 'market-stall', 'round-table', 'dining-chair', 'patio-umbrella', 'traffic-cone', 'metal-fence',
   'scaffolding', 'excavator', 'bulldozer', 'dog', 'puppy', 'cat', 'black-cat', 'kitten', 'bird', 'car-dashboard', 'dumpster', 'phone-booth', 'mailbox', 'newspaper-stand', 'parking-meter', 'vending-machine', 'traffic-barrel', 'wooden-pallet', 'cardboard-box-stack',
   'trash-bag-pile', 'atm', 'advertising-column', 'bike-rack', 'bicycle', 'moped', 'e-scooter', 'sandbags', 'street-planter'];
 // big vehicles: the models each procedural type can become
@@ -14940,7 +14971,7 @@ function realCarsWhen(fn) { const s = realAssets(); if (s.done) fn(); else s.wai
 function startRealAssets() {
   const s = realAssets();
   if (s.started) return; s.started = true;
-  const one = () => { if (--s.pending > 0) return; s.done = true; try { propPools(); realParkPools(); warmRealTextures(); } catch (e) { console.error(e); } const w = s.waiting.splice(0); for (const fn of w) { try { fn(); } catch (e) { console.error(e); } } };
+  const one = () => { if (--s.pending > 0) return; s.done = true; try { propPools(); realParkPools(); warmRealTextures(); if (pedAsset) for (const H of HUMANS.list) H.clips ||= humanClips(H); } catch (e) { console.error(e); } const w = s.waiting.splice(0); for (const fn of w) { try { fn(); } catch (e) { console.error(e); } } };
   const load = (url, ok) => { s.pending++; gltfLoader.load(url, (g) => { try { ok(g); } catch (e) { console.error(e); } one(); }, undefined, () => one()); };
   for (const n of REAL_CAR_FILES) load('assets/cars/' + n + '.glb', (g) => { s.cars[n] = prepRealCar(g.scene, n); });
   for (const n of REAL_PROP_FILES) load('assets/models/' + n + '.glb', (g) => { s.props[n] = g.scene; });
@@ -15227,6 +15258,7 @@ function rebuildRealProps() {
   for (const b of blocks.values()) for (const p of b.realProps || []) {
     const vs = pools[p.t]; if (!vs) continue;
     if (PROP_NEAR.has(p.t) && (Math.abs(b.i - ci) > 1 || Math.abs(b.j - cj) > 1)) continue;
+    if (LIVE_TYPES.has(p.t)) continue; // pigeons and cats move: see updateLive
     const h = Math.abs(Math.floor(p.x * 13.1 + p.z * 7.7)), P = vs[h % vs.length];
     _rpQ.setFromAxisAngle(_rpUp, p.yaw);
     _rpM.compose(_rpV.set(p.x, p.y, p.z), _rpQ, new THREE.Vector3(p.s, p.s, p.s));
@@ -15290,16 +15322,16 @@ function makeRealCourier() {
   ride.traverse(o => { if (o.isMesh) { o.castShadow = true; o.layers.set(GROUND); } }); g.add(ride);
   const col = mpick([0x30ff90, 0xff8a2a, 0x22d3ff, 0xffd23a]);
   const h = humanClone(col, ['man', 'man-base-character', 'teen-character', 'woman', 'businessman']);
-  let mixer = null;
+  let mixer = null, rideAct = null, idleAct = null;
   if (h) {
     const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0];
     h.root.position.set(0, stand ? 0.14 : kind === 'moped' ? -0.12 : -0.02, stand ? 0.05 : 0.2); h.root.rotation.y = Math.PI; g.add(h.root); // people face +z, riders face the way they ride
-    mixer = new THREE.AnimationMixer(h.inner); mixer.clipAction(stand ? h.clips.idle : kind === 'bicycle' ? rideClip2(H) : rideClip(H)).play();
+    mixer = new THREE.AnimationMixer(h.inner); rideAct = mixer.clipAction(stand ? h.clips.idle : kind === 'bicycle' ? rideClip2(H) : rideClip(H)); rideAct.play(); idleAct = mixer.clipAction(h.clips.idle);
   }
   const bag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.38), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 }));
   bag.position.set(0, stand ? 1.5 : 1.3, 0.45); bag.castShadow = true; g.add(bag);
   scene.add(g);
-  return { g, mixer, x: 0, z: 0, dir: 0, v: kind === 'bicycle' ? 5 : 6.5, ph: Math.random() * 6, fall: 0, placed: false, real: kind };
+  return { g, mixer, x: 0, z: 0, dir: 0, v: kind === 'bicycle' ? 5 : 6.5, ph: Math.random() * 6, fall: 0, placed: false, real: kind, rider: h, rideAct, idleAct, bag, stopT: 0 };
 }
 
 // ---------- ground: Poly Haven photo textures (CC0) under the puddles, with their normal and roughness maps ----------
@@ -15346,11 +15378,10 @@ function buildTreeImpostors(tex) {
   mat.userData.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.45, side: THREE.DoubleSide });
   TREE_BAKES.forEach(([half, h, target], c) => {
     const g = new THREE.Group(), u0 = c / 3, u1 = (c + 1) / 3;
-    for (const row of [0, 1]) {
-      const geo = uvRect(new THREE.PlaneGeometry(2 * half, 2 * half), u0, row ? 0 : 0.5, u1, row ? 0.5 : 1).translate(0, h / 2, 0);
-      if (row) geo.rotateY(Math.PI / 2);
+    [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].forEach((rot, row) => { // four cards: the tree no longer looks flat from up close
+      const geo = uvRect(new THREE.PlaneGeometry(2 * half, 2 * half), u0, 1 - (row + 1) / 4, u1, 1 - row / 4).translate(0, h / 2, 0).rotateY(rot);
       g.add(new THREE.Mesh(geo, mat));
-    }
+    });
     g.scale.setScalar(target / h);
     const n = 'imp_' + c; s.props[n] = g; (s.whole ||= new Set()).add(n); (s.keepOrigin ||= new Set()).add(n);
   });
@@ -15455,6 +15486,372 @@ function addCockpitDash(g, e) {
 function updateWorld14(dt) {
   updateJoggers(dt);
   updateRainSplashes(dt);
+}
+
+// some mornings the city wakes up in a thick fog (one day in three, 5 h - 8 h 30)
+function morningFog() { const h = world.tod, day = prog.days || 0; if (h < 5 || h > 8.5 || (Math.imul(day + 7, 2654435761) >>> 0) % 3) return 0; return 0.85 * Math.sin((h - 5) / 3.5 * Math.PI); }
+// ---------- bones: point a limb somewhere after the animation has posed it (waving, filming, signalling) ----------
+const _aimA = new THREE.Vector3(), _aimB = new THREE.Vector3(), _aimQ = new THREE.Quaternion(), _aimW = new THREE.Quaternion(), _aimP = new THREE.Quaternion();
+function boneOf(root, re) {
+  const c = root.userData.bones ||= {};
+  if (c[re] === undefined) { c[re] = null; root.traverse(o => { if (!c[re] && o.isBone && new RegExp(re).test(o.name)) c[re] = o; }); }
+  return c[re];
+}
+function aimBone(root, re, dir, k = 1) {
+  const b = boneOf(root, re); if (!b) return;
+  const child = b.children.find(o => o.isBone); if (!child) return;
+  b.parent.updateWorldMatrix(true, false); b.updateWorldMatrix(false, true);
+  b.getWorldPosition(_aimA); child.getWorldPosition(_aimB);
+  const cur = _aimB.sub(_aimA).normalize();
+  _aimQ.setFromUnitVectors(cur, dir.clone().normalize());
+  b.getWorldQuaternion(_aimW); b.parent.getWorldQuaternion(_aimP);
+  const target = _aimP.invert().multiply(_aimQ.multiply(_aimW));
+  b.quaternion.slerp(target, k);
+  b.updateWorldMatrix(false, true);
+}
+
+// ---------- animals that move: pigeons take off, cats bolt, the walked dogs trot ----------
+const LIVE_TYPES = new Set(['bird', 'cat', 'bcat', 'kitten']);
+const live = { list: [], sig: '' };
+function liveClone(file, s) {
+  const src = realAssets().props[file]; if (!src) return null;
+  const box = new THREE.Box3().setFromObject(src), ctr = box.getCenter(new THREE.Vector3());
+  const holder = new THREE.Group(), c = src.clone(true); c.position.set(-ctr.x, -box.min.y, -ctr.z);
+  c.traverse(o => { if (o.isMesh) { o.castShadow = false; o.layers.set(GROUND); } });
+  const inner = new THREE.Group(); inner.scale.setScalar(s); inner.add(c); holder.add(inner); holder.inner = inner;
+  scene.add(holder); return holder;
+}
+function rebuildLive() {
+  for (const a of live.list) scene.remove(a.o);
+  live.list = [];
+  const ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S), files = { bird: 'bird', cat: 'cat', bcat: 'black-cat', kitten: 'kitten' };
+  for (const b of blocks.values()) {
+    if (Math.abs(b.i - ci) > 1 || Math.abs(b.j - cj) > 1) continue;
+    for (const p of b.realProps || []) {
+      if (!LIVE_TYPES.has(p.t) || live.list.length >= 40) continue;
+      const o = liveClone(files[p.t], p.s); if (!o) continue;
+      o.position.set(p.x, p.y, p.z); o.rotation.y = p.yaw;
+      live.list.push({ o, t: p.t, home: { x: p.x, y: p.y, z: p.z, yaw: p.yaw }, mode: 'idle', k: 0, vx: 0, vy: 0, vz: 0, ph: Math.random() * 6 });
+    }
+  }
+}
+function updateLive(dt, t) {
+  const sig = Math.floor(car.pos.x / S) + ',' + Math.floor(car.pos.z / S) + ':' + blocks.size;
+  if (sig !== live.sig && realCarsOk()) { live.sig = sig; rebuildLive(); }
+  const sp = Math.hypot(car.vx, car.vz), scare = onFoot ? 3.5 : sp > 3 ? 9 : 4;
+  for (const a of live.list) {
+    const o = a.o, dx = o.position.x - car.pos.x, dz = o.position.z - car.pos.z, d = Math.hypot(dx, dz) || 1;
+    o.visible = !interior;
+    if (a.mode === 'idle') {
+      if (a.t === 'bird') o.inner.rotation.x = Math.max(0, Math.sin(t * 3 + a.ph)) ** 8 * 0.6; // pecking
+      if (d < scare) {
+        a.mode = a.t === 'bird' ? 'fly' : 'flee'; a.k = 0;
+        const sp2 = a.t === 'bird' ? 4 + Math.random() * 2 : 5.5;
+        a.vx = dx / d * sp2 + (Math.random() - 0.5) * 2; a.vz = dz / d * sp2 + (Math.random() - 0.5) * 2; a.vy = a.t === 'bird' ? 3 + Math.random() * 2 : 0;
+        o.rotation.y = Math.atan2(a.vx, a.vz);
+      }
+    } else if (a.mode === 'fly' || a.mode === 'flee') {
+      a.k += dt;
+      o.position.x += a.vx * dt; o.position.z += a.vz * dt; o.position.y += a.vy * dt;
+      if (a.mode === 'fly') { o.inner.rotation.z = Math.sin(t * 40 + a.ph) * 0.35; a.vy = Math.max(0.6, a.vy - dt); }
+      else o.position.y = a.home.y + Math.abs(Math.sin(t * 18)) * 0.05; // a cat's bounding run
+      if (a.k > (a.mode === 'fly' ? 6 : 2.2)) { a.mode = 'gone'; o.visible = false; }
+    } else if (a.mode === 'gone') {
+      o.visible = false; a.k += dt;
+      // back home once you are well away
+      if (a.k > 18 && Math.hypot(a.home.x - car.pos.x, a.home.z - car.pos.z) > 30) { a.mode = 'idle'; o.position.set(a.home.x, a.home.y, a.home.z); o.rotation.y = a.home.yaw; o.inner.rotation.set(0, 0, 0); }
+    }
+  }
+  for (const p of peds) if (p.dog && p.root.visible) { p.dog.position.y = p.w > 0.5 ? Math.abs(Math.sin(t * 9 + p.s)) * 0.05 : 0; p.dog.rotation.y = p.w > 0.5 ? Math.sin(t * 4.5 + p.s) * 0.08 : 0; }
+}
+
+// ---------- couriers stop to deliver: off the bike, parcel on the doorstep, back on ----------
+function updateCourierStops(dt) {
+  for (const c of couriers) {
+    if (!c.real || !c.rider || !c.g.visible) continue;
+    c.stopIn ??= 15 + Math.random() * 30;
+    if (c.stopT > 0) {
+      c.stopT -= dt;
+      if (c.stopT <= 0) { c.v = c.v0; c.rider.root.position.copy(c.seat); c.rider.root.rotation.y = Math.PI; c.idleAct.stop(); c.rideAct.play(); c.bag.visible = true; c.drop.visible = false; c.stopIn = 20 + Math.random() * 40; }
+      continue;
+    }
+    if ((c.stopIn -= dt) <= 0 && c.fall <= 0) {
+      c.v0 = c.v; c.v = 0; c.stopT = 7;
+      c.seat ||= c.rider.root.position.clone();
+      c.rider.root.position.set(1.0, 0.0, 0.3); c.rider.root.rotation.y = -Math.PI / 2; // standing beside the bike, facing the kerb
+      c.rideAct.stop(); c.idleAct.play(); c.bag.visible = false;
+      if (!c.drop) { c.drop = c.bag.clone(); c.g.add(c.drop); }
+      c.drop.visible = true; c.drop.position.set(1.9, 0.21, 0.3);
+    }
+  }
+}
+
+// ---------- the Chinatown night market35: vendors behind the stalls, bulbs strung over them, browsers ----------
+const market35 = { list: [], sig: '', bulbs: null };
+function rebuildMarket() {
+  for (const m of market35.list) scene.remove(m.h.root);
+  market35.list = [];
+  const stalls = [];
+  for (const b of blocks.values()) for (const p of b.realProps || []) if (p.t === 'stall' && Math.hypot(p.x - car.pos.x, p.z - car.pos.z) < 80) stalls.push(p);
+  stalls.sort((a, b) => Math.hypot(a.x - car.pos.x, a.z - car.pos.z) - Math.hypot(b.x - car.pos.x, b.z - car.pos.z));
+  const bulbPos = [];
+  for (const p of stalls.slice(0, 6)) {
+    const atYaw = p.yaw - Math.PI, f = fwdOf(atYaw); // into the block
+    const v = humanClone(mpick([0xc8201a, 0x1a1c22, 0xe8e0c8]), ['man', 'woman', 'chef', 'elderly-woman', 'businessman']);
+    if (v) { v.root.position.set(p.x + f.x * 1.1, 0.16, p.z + f.z * 1.1); v.root.rotation.y = atYaw + Math.PI; scene.add(v.root); const mx = new THREE.AnimationMixer(v.inner); mx.clipAction(v.clips.idle).play(); market35.list.push({ h: v, mx }); }
+    // browsers on the sidewalk in front
+    for (let k = 0; k < 2; k++) {
+      const w = humanClone(); if (!w) continue;
+      const side = new THREE.Vector3(Math.cos(atYaw), 0, -Math.sin(atYaw));
+      w.root.position.set(p.x - f.x * (1.4 + k * 0.4) + side.x * (k ? 0.8 : -0.6), 0.16, p.z - f.z * (1.4 + k * 0.4) + side.z * (k ? 0.8 : -0.6));
+      w.root.rotation.y = atYaw; scene.add(w.root);
+      const mx = new THREE.AnimationMixer(w.inner); mx.clipAction(k ? w.clips.agree || w.clips.idle : w.clips.idle).play(); market35.list.push({ h: w, mx });
+    }
+    for (let k = -4; k <= 4; k++) { const sd = new THREE.Vector3(Math.cos(atYaw), 0, -Math.sin(atYaw)); bulbPos.push([p.x + sd.x * k * 0.55, 3.0 - Math.abs(k) * 0.03 + (k % 2) * 0.05, p.z + sd.z * k * 0.55]); }
+  }
+  if (!market35.bulbs) { market35.bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 4), new THREE.MeshBasicMaterial({ color: hdr(0xffc070, 5), fog: false }), 80); market35.bulbs.frustumCulled = false; scene.add(market35.bulbs); }
+  const m4 = new THREE.Matrix4(); market35.bulbs.count = Math.min(80, bulbPos.length);
+  bulbPos.slice(0, 80).forEach(([x, y, z], k) => market35.bulbs.setMatrixAt(k, m4.makeTranslation(x, y, z)));
+  market35.bulbs.instanceMatrix.needsUpdate = true;
+}
+function updateMarket35(dt) {
+  const night = world.tod > 18.5 || world.tod < 1.5, ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S);
+  const sig = night ? ci + ',' + cj : 'day';
+  if (sig !== market35.sig && HUMANS.list.length && realCarsOk()) { market35.sig = sig; if (night) rebuildMarket(); else { for (const m of market35.list) scene.remove(m.h.root); market35.list = []; if (market35.bulbs) market35.bulbs.count = 0; } }
+  for (const m of market35.list) { m.h.root.visible = !interior && world.rain < 0.6; if (m.h.root.visible) m.mx.update(dt); }
+  if (market35.bulbs) market35.bulbs.visible = night && !interior;
+}
+
+// ---------- the seafront: anglers on the marina quay ----------
+const anglers = { list: [], built: false };
+function updateAnglers(dt) {
+  if (!marina.g || !HUMANS.list.length) return;
+  if (!anglers.built) {
+    anglers.built = true;
+    for (let k = 0; k < 3; k++) {
+      const h = humanClone(mpick([0x30503a, 0x2a3550, 0x6a5a48]), ['elderly-man', 'farmer', 'man', 'man-base-character']); if (!h) continue;
+      const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0];
+      h.root.position.set(MARINA.i * S + 10 + k * 22, WATER_Y + 0.25, RZ0 + 3.9); h.root.rotation.y = 0; // sat on the edge, facing the water
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.02, 3, 5), new THREE.MeshStandardMaterial({ color: 0x2a2a2a })); rod.position.set(0.25, 1.6, 1.1); rod.rotation.x = 0.9; h.root.add(rod);
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.25, 2.5, 2.3), new THREE.Vector3(0.25, -0.6, 3.2)]), new THREE.LineBasicMaterial({ color: 0xdddddd })); h.root.add(line);
+      scene.add(h.root);
+      const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(sitClip(H)).play();
+      anglers.list.push({ h, mx });
+    }
+  }
+  const near = Math.hypot(MARINA.i * S + S / 2 - car.pos.x, RZ0 - car.pos.z) < 150;
+  for (const a of anglers.list) { a.h.root.visible = near && !interior; if (near) a.mx.update(dt); }
+}
+// marina boats: real models (grab3d, CC0) in place of the extruded hulls
+function realBoat(len) {
+  const s = realAssets(), name = mpick(['yacht', 'motorboat', 'speedboat', 'sailboat', 'fishing-boat']), src = s.props[name]; if (!src) return null;
+  const box = new THREE.Box3().setFromObject(src), L = box.max.z - box.min.z || 1, k = len / L;
+  const g = new THREE.Group(), m = src.clone(true), ctr = box.getCenter(new THREE.Vector3());
+  m.position.set(-ctr.x * k, -box.min.y * k - 0.75, -ctr.z * k); m.scale.setScalar(k); m.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.add(m);
+  g.win = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshStandardMaterial({ emissive: 0xffd8a0, emissiveIntensity: 0 })); g.win.visible = false; g.add(g.win);
+  const cabin = new THREE.PointLight(0xffc890, 0, 8, 2); cabin.position.set(0, 2, 0); g.add(cabin); g.cabin = cabin;
+  return g;
+}
+
+// ---------- people by the hour, under the rain, round a crash; street jobs ----------
+function pedRush() { const h = world.tod; return (h > 7 && h < 9.3) || (h > 17 && h < 19.5) ? 1.35 : h > 22 || h < 5 ? 0.85 : 1; }
+const crash = { dmg: 0, t: 0, x: 0, z: 0 };
+function updateCrowd35(dt, t) {
+  const late = world.tod >= 1.5 && world.tod < 5.5;
+  peds.forEach((p, k) => { if (p.root && p !== missions.client) p.root.visible = !(late && k % 4 !== 0); });
+  // a hard crash: people nearby stop and film it
+  if (car.damage > crash.dmg + 0.08 && !onFoot) { crash.t = 7; crash.x = car.pos.x; crash.z = car.pos.z; }
+  crash.dmg = car.damage;
+  if (crash.t > 0) {
+    crash.t -= dt;
+    for (const p of peds) {
+      if (!p.root.visible) continue;
+      const x = p.root.position.x, z = p.root.position.z, d = Math.hypot(x - crash.x, z - crash.z);
+      if (d > 30 || d < 3) continue;
+      p.pause = Math.max(p.pause, 0.3); p.scare = 0;
+      const yaw = Math.atan2(crash.x - x, crash.z - z); p.root.rotation.y = p.yaw = yaw;
+      const hm = p.root; if (!hm.userData.filmPhone) { const b = boneOf(hm, '(Right)Hand$'); if (b) { const ph = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.15, 0.012), phoneMat); ph.scale.setScalar(1 / (b.getWorldScale(new THREE.Vector3()).x || 1)); ph.position.set(0, 0.08, 0.03); b.add(ph); hm.userData.filmPhone = ph; } }
+      aimBone(hm, '(mixamorig)?RightArm$', new THREE.Vector3(Math.sin(yaw), 0.35, Math.cos(yaw)), 0.9);
+      aimBone(hm, '(mixamorig)?RightForeArm$', new THREE.Vector3(Math.sin(yaw), 0.8, Math.cos(yaw)), 0.9);
+    }
+  }
+  // a car on the sidewalk: people jump out of the way
+  if (!onFoot && Math.hypot(car.vx, car.vz) > 5) for (const p of peds) if (p.root.visible && Math.hypot(p.root.position.x - car.pos.x, p.root.position.z - car.pos.z) < 7) p.scare = Math.max(p.scare || 0, 2.5);
+}
+// a traffic officer at a crossing near you by day, builders on the site, a waiter on the nearest terrace
+const jobs = { cop: null, workers: [], waiter: null, cell: '' };
+function updateJobs35(dt, t) {
+  if (!HUMANS.list.length || !realCarsOk()) return;
+  const day = world.tod > 7 && world.tod < 20, ci = Math.round(car.pos.x / S), cj = Math.round(car.pos.z / S), key = ci + ',' + cj;
+  if (!jobs.cop) {
+    const h = humanClone(undefined, ['police-officer']); if (h) { scene.add(h.root); const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(h.clips.idle).play(); jobs.cop = { h, mx }; }
+  }
+  if (jobs.cop) {
+    if (jobs.cell !== key) { jobs.cell = key; jobs.cop.h.root.position.set(ci * S + 7.6, 0.16, cj * S + 7.6); jobs.cop.h.root.rotation.y = -Math.PI * 0.75; }
+    const vis = day && !interior && CITY_WALK.includes(districtOf(ci, cj)); jobs.cop.h.root.visible = vis;
+    if (vis) { jobs.cop.mx.update(dt); const a = jobs.cop.h.root.rotation.y + Math.PI / 2, up = 0.5 + 0.3 * Math.sin(t * 2); aimBone(jobs.cop.h.root, '(mixamorig)?LeftArm$', new THREE.Vector3(Math.sin(a), up, Math.cos(a)), 1); }
+  }
+  // builders: the site cell
+  const siteKey = Object.entries(SPECIAL_CELLS).find(([, v]) => v === 'site')?.[0];
+  if (siteKey && !jobs.workers.length) {
+    const [si, sj] = siteKey.split(',').map(Number);
+    for (let k = 0; k < 3; k++) {
+      const h = humanClone(0xff8a20, ['man-base-character', 'man', 'farmer']); if (!h) break;
+      h.root.position.set(si * S + HALF_ROAD + 24 + k * 3, 0.02, sj * S + HALF_ROAD + 20 + (k % 2) * 2); h.root.rotation.y = k * 2; scene.add(h.root);
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: 0.4 }));
+      const head = boneOf(h.inner, '(mixamorig)?Head$'); if (head) { helmet.scale.setScalar(1 / (head.getWorldScale(new THREE.Vector3()).x || 1)); helmet.position.set(0, 0.12 / (head.getWorldScale(new THREE.Vector3()).x || 1), 0); head.add(helmet); }
+      const mx = new THREE.AnimationMixer(h.inner); mx.clipAction(k === 1 ? h.clips.agree || h.clips.idle : h.clips.idle).play();
+      jobs.workers.push({ h, mx, si, sj });
+    }
+  }
+  for (const w of jobs.workers) { const near = day && !interior && Math.hypot(w.h.root.position.x - car.pos.x, w.h.root.position.z - car.pos.z) < 110; w.h.root.visible = near; if (near) w.mx.update(dt); }
+  // a waiter walking up and down the nearest terrace
+  if (!jobs.waiter) { const h = humanClone(0xf2f2ee, ['man', 'businessman', 'woman']); if (h) { scene.add(h.root); const mx = new THREE.AnimationMixer(h.inner), walk = mx.clipAction(h.clips.walk); walk.play(); jobs.waiter = { h, mx, a: null, b: null, k: 0 }; } }
+  const W = jobs.waiter;
+  if (W) {
+    if ((W.re = (W.re || 0) - dt) <= 0) {
+      W.re = 2; let best = null;
+      for (const b of blocks.values()) for (const p of b.realProps || []) if (p.t === 'ctable') { const d = Math.hypot(p.x - car.pos.x, p.z - car.pos.z); if (d < 60 && (!best || d < best.d)) best = { p, d }; }
+      if (best && (!W.a || Math.hypot(W.a.x - best.p.x, W.a.z - best.p.z) > 9)) { const f = fwdOf(best.p.yaw || 0); W.a = { x: best.p.x - f.x * 0.9, z: best.p.z - f.z * 0.9 }; W.b = { x: W.a.x + Math.cos(best.p.yaw || 0) * 5.2, z: W.a.z - Math.sin(best.p.yaw || 0) * 5.2 }; W.k = 0; }
+      if (!best) W.a = null;
+    }
+    W.h.root.visible = !!W.a && !interior && world.tod > 8 && world.tod < 23 && world.rain < 0.5;
+    if (W.h.root.visible) {
+      W.k += dt * 0.25; const u = (Math.sin(W.k * Math.PI) + 1) / 2, x = W.a.x + (W.b.x - W.a.x) * u, z = W.a.z + (W.b.z - W.a.z) * u;
+      const dir = Math.cos(W.k * Math.PI) >= 0 ? 1 : -1;
+      W.h.root.position.set(x, 0.16, z); W.h.root.rotation.y = Math.atan2((W.b.x - W.a.x) * dir, (W.b.z - W.a.z) * dir); W.mx.update(dt);
+    }
+  }
+}
+
+// ---------- people crossing at the lights (on red for the cars) ----------
+const crossers = { list: [], key: '' };
+function updateCrossers(dt, t) {
+  if (!HUMANS.list.length) return;
+  const ci = Math.round(car.pos.x / S), cj = Math.round(car.pos.z / S), key = ci + ',' + cj;
+  const ok = CITY_WALK.includes(districtOf(ci, cj)) || CITY_WALK.includes(districtOf(ci - 1, cj - 1));
+  if (key !== crossers.key) {
+    crossers.key = key;
+    for (const c of crossers.list) scene.remove(c.h.root);
+    crossers.list = [];
+    if (ok) for (let k = 0; k < 4; k++) {
+      const h = humanClone(); if (!h) break;
+      const mx = new THREE.AnimationMixer(h.inner), walk = mx.clipAction(h.clips.walk), idle = mx.clipAction(h.clips.idle); walk.play(); idle.play();
+      // arms 0/1 cross the road along x (they need the x-axis cars stopped), 2/3 cross the road along z
+      const axis = k < 2 ? 0 : 1, sgn = k % 2 ? 1 : -1, off = 9.5 * sgn;
+      const A = axis === 0 ? { x: ci * S + off, z: cj * S - 7.6 } : { x: ci * S - 7.6, z: cj * S + off };
+      const B = axis === 0 ? { x: ci * S + off, z: cj * S + 7.6 } : { x: ci * S + 7.6, z: cj * S + off };
+      scene.add(h.root); crossers.list.push({ h, mx, walk, idle, axis, A, B, u: Math.random() < 0.5 ? 0 : 1, dir: 0, wait: Math.random() * 6 });
+    }
+  }
+  const now = t;
+  for (const c of crossers.list) {
+    c.h.root.visible = ok && !interior && world.tod > 6 && world.tod < 23.5;
+    if (!c.h.root.visible) continue;
+    // the cars crossing this person's path run on the other axis: x-road cars move along x (axis 0)
+    const red = signalState(ci * S, cj * S, c.axis, now) === 'r';
+    if (c.dir === 0) {
+      c.wait -= dt;
+      if (red && c.wait <= 0) c.dir = c.u < 0.5 ? 1 : -1;
+    } else {
+      const sp = (world.rain > 0.5 ? 2.2 : 1.35) * pedRush() / 15.2;
+      c.u = clamp(c.u + c.dir * sp * dt, 0, 1);
+      if (c.u === 0 || c.u === 1) { c.dir = 0; c.wait = 4 + Math.random() * 10; }
+    }
+    const x = c.A.x + (c.B.x - c.A.x) * c.u, z = c.A.z + (c.B.z - c.A.z) * c.u;
+    c.h.root.position.set(x, c.u > 0.02 && c.u < 0.98 ? 0.02 : 0.16, z);
+    const tx = (c.B.x - c.A.x) * (c.dir || (c.u < 0.5 ? 1 : -1)), tz = (c.B.z - c.A.z) * (c.dir || (c.u < 0.5 ? 1 : -1));
+    c.h.root.rotation.y = Math.atan2(tx, tz);
+    const moving = c.dir !== 0; c.walk.setEffectiveWeight(moving ? 1 : 0); c.idle.setEffectiveWeight(moving ? 0 : 1); c.walk.timeScale = world.rain > 0.5 ? 1.5 : 1;
+    if (Math.hypot(x - camera.position.x, z - camera.position.z) < 90) c.mx.update(dt);
+  }
+}
+
+// ---------- the taxi client waves you down; a delivery carried on foot ----------
+let carryBox = null;
+function updateTaxiAndCarry(dt, t) {
+  const o = missions.offers.taxi, cl = missions.client;
+  if (o && cl?.root.visible && Math.hypot(o.x - car.pos.x, o.z - car.pos.z) < 70) {
+    const y = cl.root.rotation.y + Math.PI / 2 * (Math.sin(t * 6) > 0 ? 0.3 : 0.1);
+    aimBone(cl.root, '(mixamorig)?RightArm$', new THREE.Vector3(Math.sin(y) * 0.4, 1, Math.cos(y) * 0.4), 1);
+  }
+  const carrying = onFoot && missions.active?.kind === 'delivery' && walker?.model;
+  if (carrying && !carryBox) { carryBox = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.36), parcelMat); carryBox.castShadow = true; }
+  if (carryBox) {
+    if (carrying && carryBox.parent !== walker.model) walker.model.add(carryBox);
+    carryBox.visible = !!carrying;
+    if (carrying) { const k = 1 / (walker.model.scale.x || 1); carryBox.scale.setScalar(k); carryBox.position.set(0, 1.08 * k, -0.32 * k); }
+  }
+}
+
+// ---------- ambience: recorded loops (rain, traffic, park, crowd, wet street, fountain) mixed by where you are ----------
+const amb35 = { loaded: false, loading: false, src: {}, g: {}, bufs: {} };
+function loadAmbience() {
+  if (amb35.loading || !audio) return; amb35.loading = true;
+  const names = ['traffic', 'park', 'crowd', 'wetstreet', 'fountain', 'rain', 'thunder'];
+  Promise.all(names.map(n => fetch('assets/sounds/' + n + '.mp3').then(r => r.arrayBuffer()).then(b => audio.ctx.decodeAudioData(b)).then(buf => [n, buf]).catch(() => [n, null]))).then(list => {
+    for (const [n, buf] of list) {
+      if (!buf) continue; amb35.bufs[n] = buf;
+      if (n === 'thunder') continue;
+      const g = audio.ctx.createGain(); g.gain.value = 0; g.connect(audio.master);
+      const s = audio.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(g); s.start(0, Math.random() * buf.duration);
+      amb35.src[n] = s; amb35.g[n] = g;
+    }
+    amb35.loaded = true;
+  });
+}
+function playThunderSample() {
+  const b = amb35.bufs.thunder; if (!b || !audio || muted) return;
+  const s = audio.ctx.createBufferSource(), g = audio.ctx.createGain(); g.gain.value = 0.55 * (interior ? 0.3 : 1); s.buffer = b; s.connect(g).connect(audio.master); s.start();
+}
+function updateAmbience35(dt) {
+  if (!audio || !started) return;
+  if (!amb35.loaded) { loadAmbience(); return; }
+  const ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S), d = districtOf(ci, cj), city = CITY_WALK.includes(d) || d === 'park';
+  const park = [...blocks.values()].find(b => b.park), dPark = park ? Math.hypot(park.park.cx - car.pos.x, park.park.cz - car.pos.z) : 1e9;
+  const inside = !!interior, k = inside ? 0.15 : 1, ac = audio.ctx.currentTime;
+  const nearCrowd = d === 'chinatown' || (world.tod > 18 && d === 'neon') ? 1 : 0.35;
+  const target = {
+    traffic: city ? (0.1 + 0.12 * (world.tod > 7 && world.tod < 21 ? 1 : 0.4)) * k : 0.03 * k,
+    park: (dPark < 60 ? 0.22 : 0) * (world.tod > 6 && world.tod < 20 ? 1 : 0.3) * k,
+    crowd: city ? 0.07 * nearCrowd * (world.tod > 1.5 && world.tod < 6 ? 0.2 : 1) * k : 0,
+    wetstreet: city ? 0.16 * clamp(world.wet * 1.5, 0, 1) * k : 0,
+    fountain: (dPark < 30 ? 0.2 * (1 - dPark / 30) : 0) * k,
+    rain: 0.35 * clamp(world.rain * 1.3, 0, 1) * (inside ? 0.25 : 1),
+  };
+  for (const [n, g] of Object.entries(amb35.g)) g.gain.setTargetAtTime(muted ? 0 : target[n] || 0, ac, 0.6);
+}
+
+// ---------- the loading screen: a progress bar and a tip ----------
+const LOAD_TIPS = ['Astuce : appuie sur C pour changer de caméra.', 'Astuce : les livraisons portées à pied jusqu’à la porte rapportent 20 % de plus.', 'Astuce : la nuit, le marché de Chinatown s’illumine.',
+  'Astuce : le mode Ultra se règle dans Réglages → Image.', 'Astuce : un taxi ? Le client te fait signe depuis le trottoir.', 'Astuce : le parc central est juste au nord du départ.'];
+function loadingBar(done, total) {
+  const ov = document.getElementById('overlay'); if (!ov) return;
+  let bar = document.getElementById('loadbar');
+  if (!bar) {
+    bar = document.createElement('div'); bar.id = 'loadbar';
+    bar.innerHTML = '<div class="lb-track"><div class="lb-fill"></div></div><p class="lb-tip"></p>';
+    const st = document.createElement('style');
+    st.textContent = '#loadbar{margin:10px auto 0;max-width:360px;width:80%}#loadbar .lb-track{height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}#loadbar .lb-fill{height:100%;width:0;background:linear-gradient(90deg,#ff3d9a,#22d3ff);transition:width .25s}#loadbar .lb-tip{font-size:12px;opacity:.7;margin-top:8px;min-height:1.2em}';
+    document.head.appendChild(st);
+    const s = document.getElementById('status'); (s?.parentNode || ov).insertBefore(bar, s?.nextSibling || null);
+    bar.querySelector('.lb-tip').textContent = mpick(LOAD_TIPS);
+  }
+  bar.querySelector('.lb-fill').style.width = `${Math.round(done / Math.max(1, total) * 100)}%`;
+  if (done >= total) setTimeout(() => { bar.style.display = 'none'; }, 600);
+}
+
+function updateWorld15(dt, t) {
+  updateLive(dt, t);
+  updateCourierStops(dt);
+  updateMarket35(dt);
+  updateAnglers(dt);
+  updateCrowd35(dt, t);
+  updateJobs35(dt, t);
+  updateCrossers(dt, t);
+  updateTaxiAndCarry(dt, t);
+  updateAmbience35(dt);
 }
 
 // ---------- sparks and dents ----------
@@ -15909,6 +16306,7 @@ renderer.setAnimationLoop(() => {
   updateWorld12(dt, rawDt, t, speed);
   updateWorld13(dt);
   updateWorld14(dt);
+  updateWorld15(dt, t);
   updateBubbles(dt);
   updateFleeing(dt);
   if ((progTimer -= dt) <= 0) { progTimer = 1; checkCounters(); flushProgress(); }
