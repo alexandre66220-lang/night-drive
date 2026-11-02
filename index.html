@@ -313,7 +313,7 @@
   <div class="mm-panel" id="mmCredits" hidden><h2>CRÉDITS</h2>
     <p>Conçu, codé et réglé à deux : toi aux idées, Claude au clavier.</p>
     <p>Rendu 3D : <b>three.js</b> (r170) · post-traitement bloom et reflets de chaussée mouillée maison.</p>
-    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers et textures de route et de trottoir <b>Poly Haven</b> (CC0) · passants et livreurs <b>grab3d.com</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
+    <p>Modèles : Ferrari, Soldier, Xbot et Michelle des exemples three.js · voitures, bus, camions, arbres, château d’eau et objets de rue <b>grab3d.com</b> (CC0) · mobilier urbain, plantes, rochers, arbres (rendus en cartes), textures de route, de trottoir et de façades, ciel HDRI <b>Poly Haven</b> (CC0) · passants, livreurs, animaux, parc, terrasses, chantier et tableau de bord <b>grab3d.com</b> (CC0) · « Car Concept » de Eric Chadwick / Darmstadt Graphics Group, Khronos glTF Sample Assets (CC BY 4.0) · renard « Fox » : modèle PixelMannen (CC0), rig et animations tomkranis (CC BY 4.0), conversion AsoboStudio et scurest (CC BY 4.0) · la ville, le col, le stade et la corniche sont générés par le code.</p>
     <p>Musique et bruitages : synthétisés en direct avec WebAudio, aucun fichier son.</p>
     <p class="dim">Merci d’avoir roulé jusqu’ici. 🌃</p>
     <button data-m="back">← Retour</button></div>
@@ -381,6 +381,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 
 const ASSETS = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/';
@@ -634,9 +635,13 @@ function facadeVariant() {
   const grid = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
     grid.push({ r, c, lit: rand() < litP ? pick(['#ffc47a', '#ffd9a6', '#ffe8c8', '#a9d6ff', '#7d8cff', '#ff9f6a']) : null, blind: rand() });
-  const map = canvasTex(W, H, (g) => {
-    g.fillStyle = wall; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < W * H / 25; i++) { const v = range(0, 40) | 0; g.fillStyle = `rgba(${v},${v},${v},.25)`; g.fillRect(rand() * W, rand() * H, 2, 2); }
+  const photo = (facadeVariant.n = (facadeVariant.n || 0) + 1) % 3;
+  const draw = (g, img) => {
+    g.globalCompositeOperation = 'source-over'; g.fillStyle = wall; g.fillRect(0, 0, W, H);
+    if (img) { // the photo tiled 4 x 5 (about 5 m a tile), multiplied by the wall's own colour
+      for (let a = 0; a < 4; a++) for (let b = 0; b < 5; b++) g.drawImage(img, a * W / 4, b * H / 5, W / 4, H / 5);
+      g.globalCompositeOperation = 'multiply'; g.fillStyle = new THREE.Color(wall).multiplyScalar(3.4).getStyle(); g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+    } else for (let i = 0; i < W * H / 25; i++) { const v = range(0, 40) | 0; g.fillStyle = `rgba(${v},${v},${v},.25)`; g.fillRect(rand() * W, rand() * H, 2, 2); }
     g.fillStyle = 'rgba(0,0,0,.35)';
     for (let r = 1; r < rows; r++) g.fillRect(0, r * chh - 3, W, 5);
     g.fillStyle = 'rgba(255,255,255,.05)';
@@ -649,7 +654,9 @@ function facadeVariant() {
       g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(x + (cw - 24) / 2 - 1, y, 2, chh - 30); // mullion
     }
     g.fillStyle = wall; g.fillRect(0, 0, 3, 3); // roof UVs sample this corner
-  }, true);
+  };
+  const map = canvasTex(W, H, (g) => draw(g), true);
+  map.userData.photo = photo; map.userData.redraw = (img) => { draw(map.image.getContext('2d'), img); map.needsUpdate = true; };
   const normalMap = normalTex(W, H, (g) => {
     g.fillStyle = '#8c8c8c'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#a8a8a8'; for (let r = 1; r < rows; r++) g.fillRect(0, r * chh - 8, W, 4);
@@ -969,7 +976,7 @@ function districtOf(i, j) {
   if ((i === 2 && j === 0) || (cellHash(i, j, 5) < 0.07 && (base === 'standard' || base === 'downtown'))) return 'garage';
   return base;
 }
-const DISTRICT_NAMES = { lot: 'Échangeur', neon: 'Quartier néon', port: 'Le port', standard: 'Centre-ville', downtown: "Quartier d'affaires", river: 'Les quais', beach: 'La plage', tunnel: 'Tunnel', garage: 'Parking à étages', mountain: 'Col des Brumes', airport: 'Aéroport', circuit: 'Circuit', fair: 'Fête foraine', site: 'Chantier', firehouse: 'Caserne & SAMU', stadium: 'Stade', chinatown: 'Quartier chinois', gasstation: 'Station-service', cliff: 'Corniche du phare', island: 'Île aux Palmiers' };
+const DISTRICT_NAMES = { park: 'Parc central', lot: 'Échangeur', neon: 'Quartier néon', port: 'Le port', standard: 'Centre-ville', downtown: "Quartier d'affaires", river: 'Les quais', beach: 'La plage', tunnel: 'Tunnel', garage: 'Parking à étages', mountain: 'Col des Brumes', airport: 'Aéroport', circuit: 'Circuit', fair: 'Fête foraine', site: 'Chantier', firehouse: 'Caserne & SAMU', stadium: 'Stade', chinatown: 'Quartier chinois', gasstation: 'Station-service', cliff: 'Corniche du phare', island: 'Île aux Palmiers' };
 const isDipCell = (i) => ((i % 4) + 4) % 4 === 1;
 
 function hwyH(x) {
@@ -1355,7 +1362,7 @@ const CIRC = { x0: 6 * S + HALF_ROAD, x1: 9 * S + S - HALF_ROAD, z0: -S + HALF_R
 const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
 const isAirportCell = (i, j) => i >= -2 && i <= 4 && j >= 5 && j <= 6;
 const isCircuitCell = (i, j) => i >= 6 && i <= 9 && j >= -1 && j <= 0;
-const SPECIAL_CELLS = { '2,2': 'fair', '-2,-1': 'site', '3,-1': 'firehouse', '-3,1': 'stadium', '1,-3': 'gasstation', '-3,2': 'chinatown', '-2,2': 'chinatown', '-1,2': 'chinatown' };
+const SPECIAL_CELLS = { '0,2': 'park', '2,2': 'fair', '-2,-1': 'site', '3,-1': 'firehouse', '-3,1': 'stadium', '1,-3': 'gasstation', '-3,2': 'chinatown', '-2,2': 'chinatown', '-1,2': 'chinatown' };
 const isCliffCell = (i, j) => i >= -11 && i <= -9 && j >= 3 && j <= 4;
 const AIR_RECTS = [[AIR.x0 + 20, AIR.z1 - 34, AIR.x0 + 150, AIR.z1 - 4], [AIR.x1 - 124, AIR.z1 - 40, AIR.x1 - 72, AIR.z1 - 4], [AIR.x1 - 64, AIR.z1 - 40, AIR.x1 - 12, AIR.z1 - 4]];
 const inClosed = (x, z) => inMountain(x, z) || inRect(AIR, x, z) || inRect(CIRC, x, z) || inCliff(x, z) || inRect(ISL, x, z) || inRect(KZ, x, z);
@@ -1864,6 +1871,7 @@ function buildBlock(i, j) {
   else if (district === 'garage') buildGarage(i, j, info, group);
   else if (district === 'fair') buildFair(i, j, info, group);
   else if (district === 'site') buildSite(i, j, info, group);
+  else if (district === 'park') buildPark(i, j, info, group);
   else if (district === 'firehouse') buildFirehouse(i, j, info, group);
   else if (district === 'stadium') buildStadium(i, j, info, group);
   else if (district === 'gasstation') buildGasStation(i, j, info, group);
@@ -2245,7 +2253,8 @@ const envPanels = {};
 const pmrem = new THREE.PMREMGenerator(renderer);
 let envTex = null, envTimer = 0;
 function rebuildEnv(top, hor, sunCol, sunDir) {
-  envScene.background = hor.clone().multiplyScalar(0.6);
+  const hdri = realAssets().hdr; // a real city sky (Poly Haven, CC0) in the reflections while it is light
+  if (hdri && look.day > 0.05) { envScene.background = hdri; envScene.backgroundIntensity = 0.12 + 0.85 * look.day; } else { envScene.background = hor.clone().multiplyScalar(0.6); envScene.backgroundIntensity = 1; }
   envPanels.sky.material.color.copy(top).multiplyScalar(1.3);
   for (const k of ['hor1', 'hor2', 'hor3', 'hor4']) envPanels[k].material.color.copy(hor).multiplyScalar(0.8);
   envPanels.sun.material.color.copy(sunCol).multiplyScalar(sunDir.y > 0 ? 20 : 0);
@@ -2859,7 +2868,7 @@ function blockRects(i, j) {
   const x0 = i * S + HALF_ROAD, z0 = j * S + HALF_ROAD, x1 = x0 + BLOCK, z1 = z0 + BLOCK;
   const d = districtOf(i, j);
   if (d === 'kart') return KART_RECTS;
-  if (d === 'lot' || d === 'garage' || d === 'mountain' || d === 'fair' || d === 'site' || d === 'island') return [];
+  if (d === 'lot' || d === 'garage' || d === 'mountain' || d === 'fair' || d === 'site' || d === 'island' || d === 'park') return [];
   if (d === 'circuit') return CIRC_RECTS;
   if (d === 'airport') return AIR_RECTS;
   if (d === 'firehouse') return [[x0 + 4, z0 + 30, x1 - 4, z1 - 4]];
@@ -6568,6 +6577,11 @@ function buildSite(i, j, info, group) {
   flushMerged(group, info, mounds, dirtMat, true);
   for (let k = 0; k < 6; k++) addProp('barrier', x0 + 8 + k * 9, z0 + 1, 0, info.key);
   for (let k = 0; k < 8; k++) addProp('cone', x0 + range(4, 22), z0 + range(16, 22), rand() * 6, info.key);
+  for (let k = 0; k < 6; k++) { realProp(info, 'scaffold', x0 + 27.5 + k * 5.2, z0 + 23.2, 0, 1, 0.02); realProp(info, 'scaffold', x0 + 27.5 + k * 5.2, z0 + 56.8, Math.PI, 1, 0.02); }
+  for (let k = 0; k < 27; k++) { realProp(info, 'fence', x0 + 1.2 + k * 2.2, z0 + BLOCK - 0.3, 0, 1, 0.02); if (k < 22) { realProp(info, 'fence', x0 + 0.3, z0 + 12 + k * 2.2, Math.PI / 2, 1, 0.02); realProp(info, 'fence', x0 + BLOCK - 0.3, z0 + 12 + k * 2.2, Math.PI / 2, 1, 0.02); } }
+  realProp(info, 'excav', x0 + 14, z0 + 32, 0.8, 1, 0.02); pillars.push({ x: x0 + 14, z: z0 + 32, r: 2.6, top: 3.5, key: info.key });
+  realProp(info, 'dozer', x0 + 52, z0 + 14, -0.6, 1, 0.02); pillars.push({ x: x0 + 52, z: z0 + 14, r: 2.4, top: 3, key: info.key });
+  for (let k = 0; k < 10; k++) realProp(info, 'cone', x0 + 4 + k * 2.4, z0 + 6, 0, 1.4, 0.02);
   info.lamps.push(new THREE.Vector3(x0 + 30, LAMP_H, z0 + 12), new THREE.Vector3(x0 + 40, 4 * 5 + LAMP_H, z0 + 40));
   Object.assign(siteState, { key: info.key, jib });
 }
@@ -7260,18 +7274,18 @@ function applyQuality() {
   lastW = 0; fitToWindow();
   // the sun's shadows give the day its depth: on from medium quality, with a lighter map
   sun.castShadow = settings.quality !== 'basse';
-  const ms = settings.quality === 'haute' ? 2048 : 1024;
+  const ms = settings.quality === 'ultra' ? 4096 : settings.quality === 'haute' ? 2048 : 1024;
   if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); sun.shadow.map?.dispose(); sun.shadow.map = null; }
   bloom.enabled = settings.quality !== 'basse';
   applyHeadlightShadows();
-  aoPass.enabled = settings.quality === 'haute' && settings.ao === true;
-  streakPass.enabled = settings.quality === 'haute';
+  aoPass.enabled = settings.quality === 'ultra' || settings.quality === 'haute' && settings.ao === true;
+  streakPass.enabled = settings.quality === 'haute' || settings.quality === 'ultra';
   applyLightBudget();
   reflCleared = false;
 }
 // the wet-road mirror pass is the most expensive extra: skipped (and blanked once) on low quality
 function renderReflectionMaybe() {
-  if (settings.quality === 'haute' || (settings.quality === 'moyenne' && world.wet > 0.1)) { renderReflection(); reflCleared = false; return; }
+  if (settings.quality === 'haute' || settings.quality === 'ultra' || (settings.quality === 'moyenne' && world.wet > 0.1)) { renderReflection(); reflCleared = false; return; }
   if (reflCleared) return;
   renderer.setRenderTarget(reflRT); renderer.setClearColor(0x000000, 1); renderer.clear(); renderer.setRenderTarget(null);
   reflCleared = true;
@@ -7291,7 +7305,7 @@ function renderSettings() {
   const range = (key, min, max, step, label) => `<label class="rng"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[key]}" data-set="${key}"><b>${Math.round(settings[key] * 100)} %</b></label>`;
   shopEl.innerHTML = `<div class="shop-head"><h2>RÉGLAGES</h2></div>
     <section><h3>Étalonnage</h3>${chips('grade', GRADES, settings.grade || 'filmique')}<div class="row wrap" style="margin-top:8px">${chips('dynres', { on: 'Résolution dynamique : oui', off: 'Résolution dynamique : non' }, settings.dynres === false ? 'off' : 'on')}</div><p class="note">La résolution dynamique baisse un peu la netteté quand ça rame, pour garder la fluidité.</p></section>
-    <section><h3>Qualité graphique</h3>${chips('quality', { haute: 'Haute', moyenne: 'Moyenne', basse: 'Basse' }, settings.quality)}<p class="note">Moyenne ou Basse si le jeu saccade (résolution, ombres, reflets, flou lumineux).</p>
+    <section><h3>Qualité graphique</h3>${chips('quality', { ultra: 'Ultra', haute: 'Haute', moyenne: 'Moyenne', basse: 'Basse' }, settings.quality)}<p class="note">Moyenne ou Basse si le jeu saccade (résolution, ombres, reflets, flou lumineux).</p>
       <div class="row wrap" style="margin-top:8px">${['on', 'off'].map(v => `<button class="chip${(settings.autoQuality ? 'on' : 'off') === v ? ' sel' : ''}" data-act="autoq" data-v="${v}" data-key="autoq${v}">Qualité auto : ${v === 'on' ? 'oui' : 'non'}<small>${v === 'on' ? 'baisse si ça saccade' : 'fixe'}</small></button>`).join('')}</div>
       <div class="row wrap" style="margin-top:8px">${['on', 'off'].map(v => `<button class="chip${(settings.ao === true ? 'on' : 'off') === v ? ' sel' : ''}" data-act="ao" data-v="${v}" data-key="ao${v}">Ombres de contact : ${v === 'on' ? 'oui' : 'non'}<small>${v === 'on' ? 'qualité Haute · coûteux' : 'plus fluide'}</small></button>`).join('')}</div></section>
     <section><h3>Son</h3>${range('music', 0, 1, 0.05, 'Musique')}${range('sfx', 0, 1, 0.05, 'Effets')}</section>
@@ -9620,7 +9634,7 @@ function drawMapMarkers(g, scr, s) {
 }
 
 // ---------- automatic quality: steps down when the frame rate sags, back up when there is headroom ----------
-const Q_ORDER = ['basse', 'moyenne', 'haute'];
+const Q_ORDER = ['basse', 'moyenne', 'haute', 'ultra']; // auto never climbs to ultra
 const autoQ = { t: 0, frames: 0, low: 0, high: 0, cool: 6 };
 function updateAutoQuality(rawDt) {
   if (!settings.autoQuality || !started || shopOpen || duo.on || document.hidden) { autoQ.t = autoQ.frames = 0; return; }
@@ -9640,7 +9654,7 @@ let lodT = 0;
 function updateLod(dt) {
   if ((lodT -= dt) > 0) return;
   lodT = 0.3;
-  const cx = camera.position.x, cz = camera.position.z, k = settings.quality === 'basse' ? 0.6 : settings.quality === 'moyenne' ? 0.8 : 1;
+  const cx = camera.position.x, cz = camera.position.z, k = settings.quality === 'basse' ? 0.6 : settings.quality === 'moyenne' ? 0.8 : settings.quality === 'ultra' ? 1.5 : 1;
   for (const b of blocks.values()) {
     if (!b.lods) continue;
     const d = Math.hypot(b.cx - cx, b.cz - cz);
@@ -10144,9 +10158,11 @@ async function runSelfTest() {
   await check('Plage animée et marina', async () => { warpCar({ x: 2 * S + 36, z: RZ0 - 8, yaw: 0 }); await wait(1500); const beach = beaches.size > 0; warpCar({ x: MARINA.i * S + 36, z: RZ0 - 8, yaw: 0 }); await wait(1200); return (beach && !!marina.g && marina.yachts.length >= 4) || `plage=${beach} marina=${!!marina.g}`; });
   await check('Voitures garées et mobilier urbain', async () => { await ownCar(); teleportTo('depart'); await wait(800); const parkedN = Object.values(pkPool).reduce((a, P) => a + P.body.count, 0) + (realCarsOk() ? realParkPools().reduce((a, P) => a + P.n, 0) : 0); const b = [...blocks.values()].find(q => CITY_WALK.includes(q.district) && q.benches); let solid = false; b?.group.traverse(o => { if (o.material === vcSolidMat()) solid = true; }); return (parkedN > 10 && solid) || `garées=${parkedN} mobilier=${solid}`; });
   await check('Écrans géants et ciel animé', async () => { await wait(300); return (screens().length === 3 && !!sky30.heli && sky30.planes.length === 2) || 'ciel'; });
-  await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + 2) % 3; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
+  await check('Ton personnage réaliste', async () => { const a0 = prog.avatar || 0; prog.avatar = 2; swapAvatar(); const human = !!walker?.human; prog.avatar = (a0 + AVATARS.length - 1) % AVATARS.length; swapAvatar(); return (human && (prog.avatar || 0) === a0) || `humain=${human}`; });
   await check('Étalonnage et profondeur de champ', async () => { const g0 = settings.grade; settings.grade = 'noir'; await wait(400); const graded = finish.uniforms.uGrade.value === 1; settings.grade = g0; openPhoto(); await wait(500); const dof = bokehPass.enabled || settings.quality === 'basse'; closePhoto(); await wait(100); return (graded && dof && !bokehPass.enabled) || `grade=${graded} dof=${dof}`; });
-  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['oak', 'maple', 'birch', 'olive', 'autumn', 'cypress'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); const people = HUMANS.list.filter(L => L.kind === 'g3d').length, riders = couriers.filter(c => c.real).length; if (people < 12 || !upgradeGround.done) return `personnages=${people} sol=${!!upgradeGround.done}`; return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
+  await check('Vrais modèles 3D (voitures, mobilier, renard)', async () => { await wait(700); const s = realAssets(); const cars = Object.keys(s.cars).length, props = Object.keys(s.props).length; const realTraffic = traffic.filter(c => c.root.userData.real).length; let placed = 0, trees = 0; for (const [t, vs] of Object.entries(propPools())) for (const P of vs) { placed += P.n; if (['treeA', 'treeB', 'treeC'].includes(t)) trees += P.n; } const bus = makeBigVehicle('bus'), busReal = !!bus.root.userData.real; scene.remove(bus.root); const people = HUMANS.list.filter(L => L.kind === 'g3d').length, riders = couriers.filter(c => c.real).length; if (people < 12 || !upgradeGround.done) return `personnages=${people} sol=${!!upgradeGround.done}`; return (cars >= 35 && props >= 40 && !!s.fox && realTraffic > 3 && placed > 20 && trees > 10 && busReal && !!vehicle?.model) || `voitures=${cars} objets=${props} renard=${!!s.fox} trafic=${realTraffic} posés=${placed} arbres=${trees} bus=${busReal}`; });
+  await check('Parc, terrasses, animaux et arbres photo', async () => { await wait(300); const P2 = propPools(), n = (t) => (P2[t] || []).reduce((a, q) => a + q.n, 0); const park = [...blocks.values()].some(b => b.park); const env = !!realAssets().hdr, fac = !!facadeMats[0].map.userData.redraw; return (n('treeA') + n('treeB') + n('treeC') > 10 && n('ctable') > 0 && n('cat') + n('bcat') + n('kitten') + n('bird') > 0 && env && fac && (park || n('fountain') >= 0)) || `arbres=${n('treeA') + n('treeB') + n('treeC')} terrasses=${n('ctable')} animaux=${n('cat') + n('bird')} ciel=${env} parc=${park}`; });
+  await check('Mode Ultra', async () => { const q0 = settings.quality; settings.quality = 'ultra'; applyQuality(); await wait(200); const ok = sun.shadow.mapSize.x === 4096 && aoPass.enabled; settings.quality = q0; applyQuality(); return ok || 'ultra'; });
   await check('Sauvegarde : écriture puis relecture', async () => { prog.rep += 1; progDirty = true; flushProgress(); const back = JSON.parse(localStorage.getItem(SK('progress'))); return back.rep === prog.rep; });
   await check('Qualité automatique', async () => { settings.autoQuality = true; return typeof updateAutoQuality === 'function'; });
   const bad = out.filter(o => !o[1]).length;
@@ -13464,6 +13480,7 @@ function buildCockpit() {
   const e = cockpitLocal(), D = DASHES[lk.dash || 'carbone'], amb = AMBIENTS[lk.ambient || 'bleu'][1];
   const g = new THREE.Group(), dm = new THREE.MeshStandardMaterial({ color: D[1], roughness: D[2], metalness: lk.dash === 'carbone' ? 0.4 : 0 });
   const dash = box(1.5, 0.14, 0.32, dm, 0, e.y - 0.34, e.z - 0.62); dash.rotation.x = 0.12; g.add(dash);
+  if (addCockpitDash(g, e)) dash.visible = false;
   g.add(box(1.5, 0.03, 0.4, new THREE.MeshStandardMaterial({ color: 0x18191d, roughness: 0.9 }), 0, e.y + 0.3, e.z - 0.3)); // headliner
   for (const sx of [-1, 1]) { const p = box(0.06, 0.62, 0.06, dm, sx * 0.62, e.y + 0.0, e.z - 0.45); p.rotation.x = -0.5; p.rotation.z = sx * 0.12; g.add(p); }
   const gauge = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, (c) => { c.fillStyle = '#05060a'; c.beginPath(); c.arc(64, 64, 62, 0, 7); c.fill(); c.strokeStyle = '#cfd6ff'; c.lineWidth = 4; for (let k = 0; k <= 10; k++) { const a = Math.PI * 0.75 + k / 10 * Math.PI * 1.5; c.beginPath(); c.moveTo(64 + Math.cos(a) * 54, 64 + Math.sin(a) * 54); c.lineTo(64 + Math.cos(a) * 44, 64 + Math.sin(a) * 44); c.stroke(); } }, true) }));
@@ -13776,7 +13793,7 @@ function updateFarTraffic(dt) {
   }
   ftGeo.setDrawRange(0, n); ftGeo.attributes.position.needsUpdate = ftGeo.attributes.color.needsUpdate = true;
 }
-const SKY_SKIP = ['river', 'beach', 'mountain', 'airport', 'circuit', 'cliff', 'island', 'kart', 'lot', 'fair', 'tunnel'];
+const SKY_SKIP = ['park', 'river', 'beach', 'mountain', 'airport', 'circuit', 'cliff', 'island', 'kart', 'lot', 'fair', 'tunnel'];
 let skyCell = null;
 function rebuildSkyline(ci, cj) {
   const m4 = new THREE.Matrix4(), seeds = skyline.geometry.attributes.aSeed.array;
@@ -13884,8 +13901,9 @@ function updateHumanLod(dt) {
   for (const L of HUMANS.lod) {
     if (!L.holder.parent) continue; keep.push(L);
     L.holder.getWorldPosition(_lodV); const d = _lodV.distanceTo(c);
-    L.inner.visible = d < 75;
-    const sh = d < 24; if (sh !== L.shadow) { L.shadow = sh; for (const m of L.meshes) m.castShadow = sh; }
+    const U = settings.quality === 'ultra';
+    L.inner.visible = d < (U ? 120 : 75);
+    const sh = d < (U ? 45 : 24); if (sh !== L.shadow) { L.shadow = sh; for (const m of L.meshes) m.castShadow = sh; }
   }
   HUMANS.lod = keep;
 }
@@ -13920,7 +13938,7 @@ function retargetHumanClip(H, clipName) {
 }
 function humanClips(H) {
   const out = {};
-  for (const n of ['walk', 'idle', 'run']) if (pedAsset.animations.some(a => a.name === n)) out[n] = retargetHumanClip(H, n);
+  for (const n of ['walk', 'idle', 'run', 'agree', 'headShake']) if (pedAsset.animations.some(a => a.name === n)) out[n] = retargetHumanClip(H, n);
   return out;
 }
 function registerHuman(gltf, kind, o2 = {}) {
@@ -14105,7 +14123,7 @@ if (treesMesh) {
 
 // ---------- headlights cast real shadows (high quality) ----------
 function applyHeadlightShadows() {
-  const on = settings.quality === 'haute';
+  const on = settings.quality === 'haute' || settings.quality === 'ultra';
   for (const h of headSides) { h.spot.castShadow = on; h.spot.shadow.mapSize.set(512, 512); h.spot.shadow.bias = -0.0008; h.spot.shadow.camera.near = 0.5; h.spot.shadow.camera.far = 45; }
 }
 function humanPed(hm) {
@@ -14431,6 +14449,15 @@ function addFurniture(i, j, info, group) {
       if ((d === 'downtown' || d === 'standard') && hs(side + 212) < 0.12) put('atm', 8 + hs(side + 213) * 38, WALK - 0.4, 0.45, 1.8, Math.PI);
       if ((d === 'neon' || d === 'chinatown') && hs(side + 214) < 0.2) put('vending', 5 + hs(side + 215) * 40, WALK - 0.45, 0.6, 1.9, Math.PI);
       if (d === 'downtown' && hs(side + 216) < 0.25) { const u = 16 + hs(side + 217) * 20; for (const du of [0, 4]) put('splanter', u + du, 1.9, 0.7, 1.0); }
+      if ((d === 'neon' || d === 'downtown' || d === 'standard') && hs(side + 230) < 0.3) { // a café terrace: tables, chairs and parasols
+        const u = 8 + hs(side + 231) * 30;
+        for (let k = 0; k < 3; k++) { const [x, z, yaw] = at(side, u + k * 2.6, 2.4); realProp(info, 'ctable', x, z, 0); if (k !== 1) realProp(info, 'umbrella', x, z, k); pillars.push({ x, z, r: 0.9, top: 1.2, key: info.key }); for (const e of [-1, 1]) { const f = fwdOf(yaw); realProp(info, 'chair', x + Math.cos(yaw) * e * 0.75, z - Math.sin(yaw) * e * 0.75, yaw + (e > 0 ? Math.PI / 2 : -Math.PI / 2)); void f; } }
+      }
+      if ((d === 'chinatown' || d === 'neon') && hs(side + 232) < 0.25) { const u = 6 + hs(side + 233) * 36; for (let k = 0; k < 2; k++) put('stall', u + k * 4, w - 1.0, 1.6, 2.7, Math.PI); }
+      if (hs(side + 234) < 0.08) put('hotdog', 10 + hs(side + 235) * 30, 1.2, 0.9, 2.1, hs(side + 236) * 6);
+      if (hs(side + 237) < 0.18) put(mpick2(['cat', 'bcat', 'kitten'], hs(side + 238)), 3 + hs(side + 239) * 46, w - 0.1, 0, 0, hs(side + 240) * 6);
+      if (hs(side + 241) < 0.1) put(hs(side + 242) < 0.5 ? 'dog' : 'puppy', 3 + hs(side + 243) * 46, w - 0.25, 0, 0, Math.PI / 2 + hs(side + 244));
+      if (hs(side + 245) < 0.2) { const u = 6 + hs(side + 246) * 40; for (let k = 0; k < 4; k++) { const [x, z] = at(side, u + k * 0.45 + hs(k + 3) * 0.3, 1.6 + hs(k) * 0.8); realProp(info, 'bird', x, z, hs(k + side) * 6, 3); } }
       if (hs(side + 218) < 0.2) put('bagpile', 3 + hs(side + 219) * 46, w - 0.2, 0, 0, hs(side + 220) * 6);
       if ((d === 'port' || d === 'chinatown' || d === 'standard') && hs(side + 221) < 0.3) { const u = 4 + hs(side + 222) * 40; put('pallet', u, w - 0.4, 0, 0, hs(side + 223)); put('cartons', u + 1.3, w - 0.35, 0.6, 1.1, hs(side + 224)); }
     }
@@ -14561,7 +14588,7 @@ function addVegetation(i, j, info, group) {
       if (hs(side * 9 + u) < 0.25) continue;
       const x = side < 2 ? x0 + u : side === 2 ? x0 + 1.8 : x0 + BLOCK - 1.8, z = side < 2 ? (side === 0 ? z0 + 1.8 : z0 + BLOCK - 1.8) : z0 + u, s = 0.8 + hs(u + side) * 0.5;
       L.planter.push(new THREE.BoxGeometry(1.3, 0.25, 1.3).translate(x, 0.28, z));
-      realProp(info, mpick2(d === 'downtown' ? ['oak', 'maple', 'birch', 'cypress'] : d === 'chinatown' ? ['olive', 'maple', 'autumn', 'oak'] : ['oak', 'maple', 'birch', 'olive', 'oak'], hs(u * 3 + side)), x, z, hs(u + side * 5) * 6.28, 0.62 * s, 0.4);
+      realProp(info, mpick2(d === 'chinatown' ? ['treeC', 'treeB'] : ['treeA', 'treeB', 'treeA', 'treeC'], hs(u * 3 + side)), x, z, hs(u + side * 5) * 6.28, 0.75 + 0.35 * s, 0.4);
       pillars.push({ x, z, r: 0.35, top: 3, key: info.key });
     }
     // a hedge or a flower bed against the building
@@ -14720,12 +14747,13 @@ function updateSkyTraffic(dt, t) {
 }
 
 // ---------- you, as a real person (in the flat: change look); pedestrians on the phone, carrying bags, chatting, sitting ----------
-const AVATARS = ['homme', 'femme', 'soldat'];
+const AVATARS = ['homme', 'femme', 'soldat', 'homme d’affaires', 'citadin', 'citadine', 'ado', 'papy', 'mamie', 'sportif', 'médecin', 'infirmière', 'chef', 'fermier', 'policier', 'pompier'];
+const AVATAR_MODEL = { 'homme d’affaires': 'businessman', citadin: 'man', citadine: 'woman', ado: 'teen-character', papy: 'elderly-man', mamie: 'elderly-woman', sportif: 'man-base-character', 'médecin': 'doctor', 'infirmière': 'nurse', chef: 'chef', fermier: 'farmer', policier: 'police-officer', pompier: 'firefighter' };
 function humanByKind(kind, tint) { for (let k = 0; k < 40; k++) { const h = humanClone(tint); if (!h) return null; const rpm = !!h.inner.getObjectByName('Wolf3D_Head'); if ((kind === 'homme') === rpm) return h; } return null; }
 function makeHumanWalker() {
   const kind = AVATARS[prog.avatar || 0];
   if (kind === 'soldat' || !HUMANS.list.length) return null;
-  const h = humanByKind(kind, 0x2a2e38); if (!h) return null;
+  const h = AVATAR_MODEL[kind] ? humanClone(undefined, [AVATAR_MODEL[kind]]) : humanByKind(kind, 0x2a2e38); if (!h) return null;
   h.inner.rotation.y = Math.PI; // people face +z, the walker faces -z
   h.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   scene.add(h.root);
@@ -14743,6 +14771,12 @@ function decoratePed(p) {
   if (!p.root || p.deco) return; p.deco = true; p.root.updateMatrixWorld(true);
   const hand = (side) => { let b = null; p.root.traverse(o => { if (o.isBone && /(mixamorig)?(Right|Left)Hand$/.test(o.name) && o.name.includes(side)) b = b || o; }); return b; };
   const r = Math.random();
+  if (r > 0.88 && realAssets().props.dog) { // walking a dog on a lead
+    const dog = realAssets().props[Math.random() < 0.5 ? 'dog' : 'puppy'].clone(true); dog.position.set(0.55, 0, 0.45); dog.traverse(o => { if (o.isMesh) o.castShadow = true; }); p.root.add(dog);
+    const lead = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.22, 0.85, 0.12), new THREE.Vector3(0.55, 0.38, 0.62)]), new THREE.LineBasicMaterial({ color: 0x1a1a1a })); p.root.add(lead);
+    return;
+  }
+  if (r > 0.8) { const b = hand('Right'); if (b) { const sc = 1 / (b.getWorldScale(new THREE.Vector3()).x || 1); const cig = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.07, 5).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2f2ee })); cig.position.set(0, 0.09, 0.02); cig.scale.setScalar(sc); b.add(cig); const tip = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 4), new THREE.MeshBasicMaterial({ color: hdr(0xff5a10, 6) })); tip.position.set(0.035, 0, 0); cig.add(tip); } return; }
   if (r < 0.3) { const b = hand('Right'); if (b) { const ph = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.15, 0.012), phoneMat); ph.position.set(0, 0.08, 0.03); b.add(ph); ph.scale.multiplyScalar(1 / (b.getWorldScale(new THREE.Vector3()).x || 1)); } }
   else if (r < 0.55) { const b = hand('Left'); if (b) { const bag = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.35, 0.12), new THREE.MeshStandardMaterial({ color: mpick([0xe8e0c8, 0xc8201a, 0x2a6aff, 0x111111]), roughness: 0.8 })); bag.position.set(0, -0.2, 0); b.add(bag); bag.scale.multiplyScalar(1 / (b.getWorldScale(new THREE.Vector3()).x || 1)); } }
 }
@@ -14763,11 +14797,11 @@ function rebuildStreetLife(ci, cj) {
   for (const s of scenes30.list) scene.remove(s.root); scenes30.list = [];
   if (!HUMANS.list.length) return;
   const add = (x, z, yaw, clipName, sit) => {
-    if (scenes30.list.length >= 12) return;
+    if (scenes30.list.length >= (settings.quality === 'ultra' ? 20 : 12)) return;
     const h = humanClone(); if (!h) return;
     const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0];
     h.root.position.set(x, 0.16 + (sit ? -0.4 : 0), z); h.root.rotation.y = yaw; scene.add(h.root);
-    const mixer = new THREE.AnimationMixer(h.inner), a = mixer.clipAction(sit ? sitClip(H) : h.clips[clipName]); a.play(); a.time = Math.random() * a.getClip().duration;
+    const mixer = new THREE.AnimationMixer(h.inner), a = mixer.clipAction(sit ? sitClip(H) : h.clips[clipName] || h.clips.idle); a.play(); a.time = Math.random() * a.getClip().duration;
     scenes30.list.push({ root: h.root, mixer, x, z });
   };
   for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
@@ -14776,7 +14810,7 @@ function rebuildStreetLife(ci, cj) {
     // someone on a bench
     for (const be of b.benches || []) if (wearHash(i, j, Math.round(be.x)) < 0.5) { const f = fwdOf(be.yaw); add(be.x - f.x * 0.05, be.z - f.z * 0.05, be.yaw, 'idle', true); }
     // a small group chatting on the sidewalk
-    if (wearHash(i, j, 88) < 0.5) { const x = i * S + HALF_ROAD + 20 + wearHash(i, j, 89) * 20, z = j * S + HALF_ROAD + 2; for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2; add(x + Math.cos(a) * 0.75, z + Math.sin(a) * 0.75, Math.atan2(-Math.cos(a), -Math.sin(a)) + Math.PI, 'idle'); } }
+    if (wearHash(i, j, 88) < 0.5) { const x = i * S + HALF_ROAD + 20 + wearHash(i, j, 89) * 20, z = j * S + HALF_ROAD + 2; for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2; add(x + Math.cos(a) * 0.75, z + Math.sin(a) * 0.75, Math.atan2(-Math.cos(a), -Math.sin(a)) + Math.PI, ['agree', 'idle', 'headShake'][k]); } }
     // people waiting at the bus stop
     if (busStopAt(i, j)) for (let k = 0; k < 2; k++) add(i * S + S / 2 + 9 + k * 1.2, j * S + 7.2, Math.PI, 'idle');
   }
@@ -14862,12 +14896,13 @@ const REAL_CAR_FILES = ['1990s-sedan', '1980s-sedan', '1970s-sedan', 'compact-ca
   'rally-car', 'dune-buggy', 'convertible', 'classic-car', 'limousine', 'lowrider', 'coupe', '1960s-sports-car', '1980s-sports-car', 'CarConcept'];
 const REAL_PROP_FILES = ['fire_hydrant', 'metal_trash_can', 'trashbag', 'painted_wooden_bench', 'utility_box_01', 'utility_box_02', 'planter_box_02', 'potted_plant_02',
   'shrub_03', 'shrub_02', 'fern_02', 'wooden_crate_01', 'Barrel_01', 'plastic_crate_01', 'concrete_road_barrier', 'covered_car', 'water_manhole_cover', 'rock_07'];
-const REAL_BIG_FILES = ['city-bus', 'double-decker-bus', 'minibus', 'delivery-truck', 'garbage-truck', 'mail-truck', 'fire-truck', 'ambulance', 'tow-truck', 'food-truck', 'street-sweeper'];
+const REAL_BIG_FILES = ['cement-mixer', 'dump-truck', 'crane-truck', 'city-bus', 'double-decker-bus', 'minibus', 'delivery-truck', 'garbage-truck', 'mail-truck', 'fire-truck', 'ambulance', 'tow-truck', 'food-truck', 'street-sweeper'];
 const REAL_TREE_FILES = ['oak-tree', 'maple-tree', 'birch-tree', 'olive-tree', 'autumn-tree', 'cypress-tree', 'palm-tree', 'bush'];
-const REAL_OBJ_FILES = ['dumpster', 'phone-booth', 'mailbox', 'newspaper-stand', 'parking-meter', 'vending-machine', 'traffic-barrel', 'wooden-pallet', 'cardboard-box-stack',
+const REAL_OBJ_FILES = ['fountain', 'park-bench', 'lantern-post', 'hot-dog-cart', 'market-stall', 'round-table', 'dining-chair', 'patio-umbrella', 'traffic-cone', 'metal-fence',
+  'scaffolding', 'excavator', 'bulldozer', 'dog', 'puppy', 'cat', 'black-cat', 'kitten', 'bird', 'car-dashboard', 'dumpster', 'phone-booth', 'mailbox', 'newspaper-stand', 'parking-meter', 'vending-machine', 'traffic-barrel', 'wooden-pallet', 'cardboard-box-stack',
   'trash-bag-pile', 'atm', 'advertising-column', 'bike-rack', 'bicycle', 'moped', 'e-scooter', 'sandbags', 'street-planter'];
 // big vehicles: the models each procedural type can become
-const REAL_BIG = { bus: ['city-bus', 'city-bus', 'double-decker-bus', 'minibus'], truck: ['delivery-truck', 'garbage-truck', 'mail-truck', 'food-truck', 'street-sweeper'],
+const REAL_BIG = { bus: ['city-bus', 'city-bus', 'double-decker-bus', 'minibus'], truck: ['delivery-truck', 'garbage-truck', 'mail-truck', 'food-truck', 'street-sweeper', 'cement-mixer', 'dump-truck', 'crane-truck'],
   fire: ['fire-truck'], ambulance: ['ambulance'], tow: ['tow-truck'] };
 function realBigVehicle(type, B) {
   if (!realCarsOk()) return null; // (also keeps the block builder away from these consts while loading)
@@ -14919,6 +14954,8 @@ function startRealAssets() {
   load('assets/buildings/water-tower.glb', (g) => { s.props['water-tower'] = g.scene; (s.whole ||= new Set()).add('water-tower'); });
   load('assets/models/Fox.glb', (g) => { s.fox = g; });
   s.one = one; s.pending++; upgradeGround(one);
+  s.pending++; new RGBELoader(manager).load('assets/textures/sky.hdr', (t) => { t.mapping = THREE.EquirectangularReflectionMapping; s.hdr = t; one(); }, undefined, () => one());
+  s.pending++; texLoader.load('assets/textures/trees_atlas.webp', (t) => { buildTreeImpostors(t); one(); }, undefined, () => one());
 }
 
 // send every texture of the models to the GPU while the loading screen is up (no hitch on the first frames)
@@ -15084,7 +15121,7 @@ function flattenModel(obj, opts = {}) {
 // an instanced pool built from flattened parts
 function makeInstPool(parts, max, shadow) {
   const meshes = parts.map(({ geo, mat }) => {
-    const m = new THREE.InstancedMesh(geo, mat, max); m.count = 0; m.castShadow = shadow; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m;
+    const m = new THREE.InstancedMesh(geo, mat, max); m.count = 0; m.castShadow = shadow; if (mat.userData.depthMat) m.customDepthMaterial = mat.userData.depthMat; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m;
   });
   return { meshes, n: 0, max };
 }
@@ -15143,6 +15180,10 @@ const PROP_DEFS31 = {
   vending: ['vending-machine', true, 50], tbarrel: ['traffic-barrel', true, 120], pallet: ['wooden-pallet', false, 120], cartons: ['cardboard-box-stack', true, 120],
   bagpile: ['trash-bag-pile', true, 90], atm: ['atm', true, 40], column: ['advertising-column', true, 50], bikerack: ['bike-rack', true, 60], bike: ['bicycle', true, 90],
   moped: ['moped', true, 70], scooter: ['e-scooter', true, 90], sandbags: ['sandbags', true, 80], splanter: ['street-planter', true, 90], wtower: ['water-tower', true, 60],
+  treeA: ['imp_0', true, 260], treeB: ['imp_1', true, 260], treeC: ['imp_2', true, 180], fountain: ['fountain', true, 4], pbench: ['park-bench', true, 30], lantern: ['lantern-post', true, 30],
+  hotdog: ['hot-dog-cart', true, 12], stall: ['market-stall', true, 40], ctable: ['round-table', true, 120], chair: ['dining-chair', true, 260], umbrella: ['patio-umbrella', true, 120],
+  cone: ['traffic-cone', false, 120], fence: ['metal-fence', true, 140], scaffold: ['scaffolding', true, 40], excav: ['excavator', true, 4], dozer: ['bulldozer', true, 4],
+  dog: ['dog', true, 40], puppy: ['puppy', true, 40], cat: ['cat', true, 40], bcat: ['black-cat', true, 40], kitten: ['kitten', true, 30], bird: ['bird', false, 160],
 };
 // a prop file → its variants: each top-level mesh group, recentred on x/z with its base at y = 0
 function propVariants(file) {
@@ -15157,7 +15198,7 @@ function propVariants(file) {
   const out = [];
   for (const g of groups) {
     const box = new THREE.Box3().setFromObject(g), ctr = box.getCenter(new THREE.Vector3());
-    const holder = new THREE.Group(); holder.position.set(-ctr.x, -box.min.y, -ctr.z);
+    const holder = new THREE.Group(); if (!realAssets().keepOrigin?.has(file)) holder.position.set(-ctr.x, -box.min.y, -ctr.z);
     const clone = g.clone(true); if (g.parent) clone.applyMatrix4(g.parent.matrixWorld); holder.add(clone);
     const wrap = new THREE.Group(); wrap.add(holder);
     out.push({ parts: flattenModel(wrap), size: box.getSize(new THREE.Vector3()) });
@@ -15169,16 +15210,23 @@ function propPools() {
   const pools = {};
   for (const [t, [file, shadow, max]] of Object.entries(PROP_DEFS31)) {
     const vars = propVariants(file); if (!vars) continue;
-    pools[t] = vars.map(v => ({ ...makeInstPool(v.parts, Math.ceil(max / vars.length) + 8, shadow), size: v.size }));
+    pools[t] = vars.map(v => ({ ...makeInstPool(v.parts, Math.ceil(max / vars.length) + 8, shadow && !PROP_NOSHADOW.has(t)), size: v.size }));
   }
   return (propPools.p = pools);
 }
 let realPropSig = '', realPropT = 0;
+// small props only stand in the 3 x 3 blocks round you, and cast no shadow (they cost every shadow pass otherwise)
+const PROP_NEAR = new Set(['bag', 'bin', 'meter', 'mailbox', 'news', 'chair', 'ctable', 'umbrella', 'cat', 'bcat', 'kitten', 'dog', 'puppy', 'bird', 'bike', 'moped', 'scooter', 'cone',
+  'pallet', 'cartons', 'bagpile', 'sandbags', 'tbarrel', 'hydrant', 'box1', 'box2', 'fern', 'pot', 'planter', 'splanter', 'crate', 'barrel', 'pcrate', 'stall', 'hotdog', 'vending', 'atm',
+  'column', 'phone', 'bikerack', 'bench', 'dumpster', 'shrub', 'shrub2', 'bush', 'manhole', 'rock']);
+const PROP_NOSHADOW = new Set(['meter', 'mailbox', 'news', 'chair', 'cat', 'bcat', 'kitten', 'dog', 'puppy', 'bird', 'bike', 'moped', 'scooter', 'cone', 'cartons', 'bagpile', 'bag', 'sandbags', 'tbarrel', 'pallet', 'fern', 'pot', 'shrub2']);
 function rebuildRealProps() {
   const pools = propPools();
   for (const vs of Object.values(pools)) for (const P of vs) P.n = 0;
+  const ci = Math.floor(car.pos.x / S), cj = Math.floor(car.pos.z / S);
   for (const b of blocks.values()) for (const p of b.realProps || []) {
     const vs = pools[p.t]; if (!vs) continue;
+    if (PROP_NEAR.has(p.t) && (Math.abs(b.i - ci) > 1 || Math.abs(b.j - cj) > 1)) continue;
     const h = Math.abs(Math.floor(p.x * 13.1 + p.z * 7.7)), P = vs[h % vs.length];
     _rpQ.setFromAxisAngle(_rpUp, p.yaw);
     _rpM.compose(_rpV.set(p.x, p.y, p.z), _rpQ, new THREE.Vector3(p.s, p.s, p.s));
@@ -15192,7 +15240,7 @@ function updateRealProps(dt) {
   if (realPropT <= 0) {
     realPropT = 0.5;
     let sig = 0; for (const b of blocks.values()) sig = (sig * 31 + b.i * 977 + b.j * 131 + (b.realProps?.length || 0)) | 0;
-    const s = String(sig) + ':' + blocks.size;
+    const s = String(sig) + ':' + blocks.size + ':' + Math.floor(car.pos.x / S) + ',' + Math.floor(car.pos.z / S);
     if (s !== realPropSig) { realPropSig = s; rebuildRealProps(); }
   }
   const show = !interior;
@@ -15246,7 +15294,7 @@ function makeRealCourier() {
   if (h) {
     const H = HUMANS.list.find(L => L.clips === h.clips) || HUMANS.list[0];
     h.root.position.set(0, stand ? 0.14 : kind === 'moped' ? -0.12 : -0.02, stand ? 0.05 : 0.2); h.root.rotation.y = Math.PI; g.add(h.root); // people face +z, riders face the way they ride
-    mixer = new THREE.AnimationMixer(h.inner); mixer.clipAction(stand ? h.clips.idle : rideClip(H)).play();
+    mixer = new THREE.AnimationMixer(h.inner); mixer.clipAction(stand ? h.clips.idle : kind === 'bicycle' ? rideClip2(H) : rideClip(H)).play();
   }
   const bag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.38), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 }));
   bag.position.set(0, stand ? 1.5 : 1.3, 0.45); bag.castShadow = true; g.add(bag);
@@ -15257,7 +15305,7 @@ function makeRealCourier() {
 // ---------- ground: Poly Haven photo textures (CC0) under the puddles, with their normal and roughness maps ----------
 function upgradeGround(cb) {
   const load = (u) => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = u; });
-  Promise.all(['asphalt_diff', 'asphalt_rough', 'asphalt_nor', 'walk_diff', 'walk_rough', 'walk_nor'].map(n => load('assets/textures/' + n + '.jpg'))).then(([ad, ar, an, wd, wr, wn]) => {
+  Promise.all(['asphalt_diff', 'asphalt_rough', 'asphalt_nor', 'walk_diff', 'walk_rough', 'walk_nor', 'facade_brick', 'facade_plaster', 'facade_concrete'].map(n => load('assets/textures/' + n + '.jpg'))).then(([ad, ar, an, wd, wr, wn, fb, fp, fc]) => {
     const tile = (c, img, n) => { const g = c.getContext('2d'), w = c.width, h = c.height; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) g.drawImage(img, i * w / n, j * h / n, w / n, h / n); return g; };
     const normalOf = (img, n, like) => { const c = document.createElement('canvas'); c.width = c.height = 1024; tile(c, img, n); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.copy(like.repeat); t.anisotropy = like.anisotropy; return t; };
     if (ad && ar) {
@@ -15275,6 +15323,7 @@ function upgradeGround(cb) {
       tile(tilesRough.image, wr, 1); tilesRough.needsUpdate = true;
       if (wn) { walkMat.normalMap = normalOf(wn, 1, tilesColor); walkMat.normalScale.set(0.8, 0.8); walkMat.needsUpdate = true; }
     }
+    if (fb && fp && fc) photoFacades([fb, fp, fc]);
     upgradeGround.done = true;
     cb?.();
   });
@@ -15286,6 +15335,127 @@ function updateWorld13(dt) {
   updateRealFoxes(dt);
 }
 startRealAssets();
+
+// ---------- tree impostors: three Poly Haven trees (CC0) rendered once from two sides into an atlas, shown as crossed cards ----------
+// [half-size of the baked frame, tree height in the bake, height in the city]
+const TREE_BAKES = [[2.564, 5.027, 7.5], [2.146, 3.407, 6.0], [12.453, 19.469, 8.5]];
+function buildTreeImpostors(tex) {
+  const s = realAssets();
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = MAX_ANISO;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95 });
+  mat.userData.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.45, side: THREE.DoubleSide });
+  TREE_BAKES.forEach(([half, h, target], c) => {
+    const g = new THREE.Group(), u0 = c / 3, u1 = (c + 1) / 3;
+    for (const row of [0, 1]) {
+      const geo = uvRect(new THREE.PlaneGeometry(2 * half, 2 * half), u0, row ? 0 : 0.5, u1, row ? 0.5 : 1).translate(0, h / 2, 0);
+      if (row) geo.rotateY(Math.PI / 2);
+      g.add(new THREE.Mesh(geo, mat));
+    }
+    g.scale.setScalar(target / h);
+    const n = 'imp_' + c; s.props[n] = g; (s.whole ||= new Set()).add(n); (s.keepOrigin ||= new Set()).add(n);
+  });
+}
+
+// ---------- photo facades (Poly Haven CC0): brick, plaster and concrete under the windows ----------
+function photoFacades(imgs) {
+  for (const m of facadeMats) m.map?.userData.redraw?.(imgs[m.map.userData.photo % imgs.length]);
+}
+
+// ---------- central park: lawn, paths, a fountain, benches, lanterns, trees, a hot-dog cart and joggers ----------
+function buildPark(i, j, info, group) {
+  const x0 = i * S + HALF_ROAD, z0 = j * S + HALF_ROAD, cx = x0 + BLOCK / 2, cz = z0 + BLOCK / 2;
+  flushMerged(group, info, [new THREE.BoxGeometry(BLOCK, 0.16, BLOCK).translate(cx, 0.08, cz)], grassMat, false);
+  // paths: a cross and a ring round the fountain, slightly proud of the lawn
+  const paths = [new THREE.BoxGeometry(BLOCK, 0.02, 3.2).translate(cx, 0.17, cz), new THREE.BoxGeometry(3.2, 0.02, BLOCK).translate(cx, 0.17, cz),
+    new THREE.RingGeometry(9.5, 12.5, 48).rotateX(-Math.PI / 2).translate(cx, 0.175, cz), new THREE.CircleGeometry(5.5, 40).rotateX(-Math.PI / 2).translate(cx, 0.175, cz)];
+  flushMerged(group, info, paths, walkMat, false);
+  realProp(info, 'fountain', cx, cz, 0, 1.6, 0.18);
+  pillars.push({ x: cx, z: cz, r: 3, top: 2.2, key: info.key });
+  // benches facing the fountain, lanterns between them
+  for (let k = 0; k < 8; k++) {
+    const a = k / 8 * Math.PI * 2 + Math.PI / 8, x = cx + Math.cos(a) * 13.6, z = cz + Math.sin(a) * 13.6;
+    realProp(info, 'pbench', x, z, Math.atan2(Math.cos(a), Math.sin(a)) + Math.PI);
+    (info.benches ||= []).push({ x, z, yaw: Math.atan2(-Math.cos(a), -Math.sin(a)) });
+    const b = a + Math.PI / 8, lx = cx + Math.cos(b) * 13.4, lz = cz + Math.sin(b) * 13.4;
+    realProp(info, 'lantern', lx, lz, b, 1.6, 0.17);
+    if (k % 2 === 0) info.lamps.push(new THREE.Vector3(lx, 3.1, lz));
+  }
+  // trees and bushes over the lawn, clear of the paths
+  for (let k = 0; k < 60; k++) {
+    const x = x0 + 3 + wearHash(i * 7 + k, j, 41) * (BLOCK - 6), z = z0 + 3 + wearHash(i, j * 5 + k, 43) * (BLOCK - 6);
+    if (Math.abs(x - cx) < 3.5 || Math.abs(z - cz) < 3.5 || Math.hypot(x - cx, z - cz) < 16) continue;
+    const t = wearHash(k, i + j, 47);
+    if (t < 0.7) { realProp(info, t < 0.3 ? 'treeA' : t < 0.55 ? 'treeB' : 'treeC', x, z, t * 40, 0.85 + t * 0.4, 0.16); pillars.push({ x, z, r: 0.45, top: 4, key: info.key }); }
+    else realProp(info, 'bush', x, z, t * 9, 1.1, 0.16);
+  }
+  realProp(info, 'hotdog', cx + 6.5, cz + 16, 0.4);
+  for (let k = 0; k < 5; k++) realProp(info, 'bird', cx + 3 + k * 0.5, cz - 7 + (k % 2) * 0.6, k * 1.3, 3, 0.18);
+  info.park = { cx, cz };
+}
+const joggers = { list: [], t: 0 };
+function updateJoggers(dt) {
+  const b = [...blocks.values()].find(q => q.park), near = b && !interior && Math.hypot(b.park.cx - car.pos.x, b.park.cz - car.pos.z) < 140;
+  if (!near || !HUMANS.list.length) { for (const j of joggers.list) j.h.root.visible = false; return; }
+  while (joggers.list.length < 4) {
+    const h = humanClone(mpick([0x2a6aff, 0xff3d9a, 0x30ff90, 0xf2f2ee]), ['man', 'woman', 'teen-character', 'man-base-character']); if (!h) return;
+    const mixer = new THREE.AnimationMixer(h.inner); mixer.clipAction(h.clips.run).play();
+    scene.add(h.root); joggers.list.push({ h, mixer, a: joggers.list.length * 1.6, r: 10.6 + (joggers.list.length % 2) * 1.2, w: 0.26 + joggers.list.length * 0.02 });
+  }
+  for (const j of joggers.list) {
+    j.a += j.w * dt; j.h.root.visible = true;
+    const x = b.park.cx + Math.cos(j.a) * j.r, z = b.park.cz + Math.sin(j.a) * j.r;
+    j.h.root.position.set(x, 0.17, z); j.h.root.rotation.y = Math.atan2(-Math.sin(j.a), Math.cos(j.a)); // people face +z
+    j.mixer.update(dt);
+  }
+}
+
+// ---------- couriers: pedalling legs and hands on the bars ----------
+function rideClip2(H) {
+  if (H.ride2) return H.ride2;
+  const idle = H.clips.idle, T = 0.9, N = 13, times = new Float32Array(N), q = new THREE.Quaternion(), add = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0);
+  for (let f = 0; f < N; f++) times[f] = f / (N - 1) * T;
+  const tracks = idle.tracks.map(t => {
+    const nm = t.name.split('.')[0].replace(/^mixamorig/, ''), base = t.values.slice(0, 4), v = new Float32Array(N * 4);
+    const side = /^Left/.test(nm) ? 0 : Math.PI;
+    for (let f = 0; f < N; f++) {
+      const ph = f / (N - 1) * Math.PI * 2 + side;
+      const a = /^(Left|Right)UpLeg$/.test(nm) ? -1.05 + 0.32 * Math.sin(ph) : /^(Left|Right)Leg$/.test(nm) ? 1.0 + 0.38 * Math.sin(ph + 1.2)
+        : /^(Left|Right)Arm$/.test(nm) ? -0.75 : /^(Left|Right)ForeArm$/.test(nm) ? -0.35 : /^Spine$/.test(nm) ? 0.25 : 0;
+      q.fromArray(base); if (a) q.multiply(add.setFromAxisAngle(X, a)); q.toArray(v, f * 4);
+    }
+    return new THREE.QuaternionKeyframeTrack(t.name, times, v);
+  });
+  return (H.ride2 = new THREE.AnimationClip('ride2', T, tracks));
+}
+
+// ---------- rain: drops bursting on the ground all around you ----------
+let rainSplashT = 0;
+function updateRainSplashes(dt) {
+  const r = started && !interior ? world.rain : 0; if (r < 0.15 || settings.quality === 'basse') return;
+  rainSplashT += dt * r * (settings.quality === 'ultra' ? 140 : 80);
+  while (rainSplashT > 1) {
+    rainSplashT--;
+    const a = Math.random() * 6.283, d = 2 + Math.random() * 14, x = camera.position.x + Math.cos(a) * d, z = camera.position.z + Math.sin(a) * d;
+    emitFx('splash', x, 0.05, z, (Math.random() - 0.5) * 0.6, 0.8 + Math.random() * 0.8, (Math.random() - 0.5) * 0.6);
+  }
+}
+
+// ---------- the cockpit: the real dashboard model in front of the styled wheel and gauges ----------
+function addCockpitDash(g, e) {
+  const src = realAssets().props['car-dashboard']; if (!src) return false;
+  const m = src.clone(true); // the model faces the driver along -z already
+  const box = new THREE.Box3().setFromObject(src), w = box.max.x - box.min.x || 1;
+  m.scale.setScalar(1.45 / w);
+  m.traverse(o => { if (/steering/i.test(o.name)) o.visible = false; if (o.isMesh) o.layers.set(GROUND); });
+  m.position.set(0, e.y - 0.78, e.z - 0.9);
+  g.add(m);
+  return true;
+}
+
+function updateWorld14(dt) {
+  updateJoggers(dt);
+  updateRainSplashes(dt);
+}
 
 // ---------- sparks and dents ----------
 // Collisions report a contact point and the obstacle's outward normal (the strongest one of the
@@ -15738,6 +15908,7 @@ renderer.setAnimationLoop(() => {
   updateWorld11(dt, rawDt, t, speed);
   updateWorld12(dt, rawDt, t, speed);
   updateWorld13(dt);
+  updateWorld14(dt);
   updateBubbles(dt);
   updateFleeing(dt);
   if ((progTimer -= dt) <= 0) { progTimer = 1; checkCounters(); flushProgress(); }
