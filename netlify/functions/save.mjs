@@ -7,7 +7,7 @@ const MAX = 512 * 1024;
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => ALPHABET[b % ALPHABET.length]).join('');
 
 export default async (req) => {
-  const store = getStore('saves');
+  const store = getStore({ name: 'saves', consistency: 'strong' }); // a save must be readable right after it is written
   if (req.method === 'POST') {
     const body = await req.text();
     if (body.length > MAX) return new Response('Sauvegarde trop grosse', { status: 413 });
